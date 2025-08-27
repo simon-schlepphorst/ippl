@@ -268,6 +268,11 @@ namespace ippl {
         return index;
     }
 
+    KOKKOS_INLINE_FUNCTION Index Index::cut(unsigned int ncells) const {
+        PAssert_GT(length_m, ncells);
+        return Index(first_m, length_m - ncells, stride_m);
+    }
+
     KOKKOS_INLINE_FUNCTION static Index do_intersect(const Index& a, const Index& b) {
         PAssert_GT(a.stride(), 0);  // This should be assured by the
         PAssert_GT(b.stride(), 0);  // caller of this function.

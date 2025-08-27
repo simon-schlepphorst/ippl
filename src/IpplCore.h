@@ -38,6 +38,9 @@
 #include "Decomposition/OrthogonalRecursiveBisection.h"
 
 // FEM
+// // FEM Container
+#include "FEM/FEMContainer.h"
+
 // // FEM Elements
 #include "FEM/Elements/EdgeElement.h"
 #include "FEM/Elements/HexahedralElement.h"
