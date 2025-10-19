@@ -44,18 +44,23 @@ namespace ippl {
         return result;
     }
 
-    template <typename T, unsigned Dim>
-    FEMContainer<T, Dim>::FEMContainer(std::array<unsigned, Dim+1> DOFNum, Mesh_t& m, Layout_t& l, int nghost) {
-        initialize(DOFNum, m, l, nghost);
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    FEMContainer<T, Dim, DOFNums...>::FEMContainer() {}
+
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    FEMContainer<T, Dim, DOFNums...>::FEMContainer(Mesh_t& m, Layout_t& l, int nghost) {
+        initialize(m, l, nghost);
     }
 
-    template <typename T, unsigned Dim>
-    void FEMContainer<T, Dim>::initialize(std::array<unsigned, Dim+1> DOFNum, Mesh_t& m, Layout_t& l, int nghost) {
-        // Set mesh
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    void FEMContainer<T, Dim, DOFNums...>::initialize(Mesh_t& m, Layout_t& l, int nghost) {
+        // Set mesh and ghostcells
+        nghost_m = nghost;
         mesh_m = &m;
-
+        
         // Get domain and communicator of the layout
         NDIndex<Dim> domain = l.getDomain();
+
         mpi::Communicator comm = l.comm;
         auto parallel = l.isParallel();
 
@@ -63,60 +68,78 @@ namespace ippl {
         unsigned int NElements = 0;
 
         // loop through all element types (vertices, edges, faces, etc.)
-        for (unsigned n = 0; n < DOFNum.size(); ++n) {
+        for (unsigned n = 0; n < DOFsPerType.size(); ++n) {
             // Calculate the number of possible directions for this element type
-            unsigned nDirs = detail::binomialCoefficient(DOFNum.size(), n);
-            
-            // In case of zero DOFs for this element type, set layout and data to nullptr for each instance of the element
-            if (DOFNum[n] == 0) {
-                std::fill(&layout_m[NElements], &layout_m[NElements + nDirs], nullptr);
-                std::fill(&data_m[NElements], &data_m[NElements + nDirs], nullptr);
-                std::fill(&numDOFs_m[NElements], &numDOFs_m[NElements + nDirs], 0);
-                
-                break;
-            }
+            unsigned nDirs = detail::binomialCoefficient(Dim, n);
 
             for (unsigned dir = 0; dir < nDirs; ++dir) {
                 // Set the number of degrees of freedom
-                numDOFs_m[NElements + dir] = DOFNum[n];
-
+                numDOFs_m[NElements] = DOFsPerType[n];
+                
                 // Get the direction in which we have less elements in the subdomain
-                std::vector<unsigned int> axes = kth_combination(DOFNum.size(), n, dir);
-
+                std::vector<unsigned int> axes = kth_combination(Dim, n, dir);
+                
                 // Create local subdomain
                 NDIndex<Dim> subDomain = domain;
                 for (unsigned int axis : axes) {
                     subDomain[axis] = subDomain[axis].cut(1);
                 }
-
+                
                 // Create a sub field layout for this element type and direction
-                layout_m[n] = std::make_shared<SubFieldLayout<Dim>>(comm, domain, subDomain, parallel, l.isAllPeriodic_m);
+                layout_m[NElements] = std::make_shared<SubFieldLayout<Dim>>(comm, domain, subDomain, parallel, l.isAllPeriodic_m);
+                
+                if(DOFsPerType[n] == 0) {
+                    data_m[NElements] = nullptr;
+                    continue;
+                }
 
                 // Initialize field for this element type and direction
-                data_m[n] = std::make_shared<Field_t>(*mesh_m, *layout_m[n], nghost);
-            }
+                data_m[NElements] = std::make_shared<Field_t>(*mesh_m, *layout_m[NElements], nghost);
 
-            // Update the number of elements already defined
-            NElements += nDirs;
+                // Add created element to the total number of elements
+                NElements += 1;
+            }
         }
     }
 
-    template <typename T, unsigned Dim>
-    void FEMContainer<T, Dim>::fillHalo() {
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    FEMContainer<T, Dim, DOFNums...>& FEMContainer<T, Dim, DOFNums...>::operator=(T value) {
+        for (const auto& field : data_m) {
+            if (field != nullptr) {
+                *field = value;
+            }
+        }
+        return *this;
+    }
+
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    FEMContainer<T, Dim, DOFNums...>& FEMContainer<T, Dim, DOFNums...>::operator=(const FEMContainer<T,Dim, DOFNums...>& other) {
+        if (this != &other) {
+            nghost_m = other.nghost_m;
+            mesh_m = other.mesh_m;
+            numDOFs_m = other.numDOFs_m;
+            layout_m = other.layout_m;
+            data_m = other.data_m;
+        }
+        return *this;
+    }
+
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    void FEMContainer<T, Dim, DOFNums...>::fillHalo() {
         for (const auto& field : data_m) {
             field != nullptr ? field->fillHalo() : void();
         }
     }
 
-    template <typename T, unsigned Dim>
-    void FEMContainer<T, Dim>::accumulateHalo() {
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    void FEMContainer<T, Dim, DOFNums...>::accumulateHalo() {
         for (const auto& field : data_m) {
             field != nullptr ? field->accumulateHalo() : void();
         }
     }
 
-    template <typename T, unsigned Dim>
-    void FEMContainer<T, Dim>::setHalo(T setValue) {
+    template <typename T, unsigned Dim, unsigned... DOFNums>
+    void FEMContainer<T, Dim, DOFNums...>::setHalo(T setValue) {
         for (const auto& field : data_m) {
             field != nullptr ? field->setHalo(setValue) : void();
         }
