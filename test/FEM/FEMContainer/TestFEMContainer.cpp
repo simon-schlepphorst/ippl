@@ -1,13 +1,11 @@
 //
 ////
-//// TestCurl.cpp
-////   This program tests the Curl operator on a vector field.
-////   The problem size can be given by the user (N^3), and a bool (0 or 1)
-////   indicates whether the vector field is A=(xyz, xyz, xyz) or a Gaussian
-////   field in all three dimensions.
+//// TestFEMContainerSize.cpp
+////   Tis program to test the creation of a FEMContainer with different sizes. It
+////   creates a FEMContainer with DOFs on all element types, and sets the DOFs to 1.0.
 ////
 //// Usage:
-////   srun ./TestCurl N 0 --info 10
+////   srun ./TestFEMContainerSize 10 false --info 10
 ////
 ////
 //
@@ -18,15 +16,6 @@
 #include <iostream>
 #include <typeinfo>
 
-KOKKOS_INLINE_FUNCTION double gaussian(double x, double y, double z, double sigma = 1.0,
-                                       double mu = 0.5) {
-    double pi        = std::acos(-1.0);
-    double prefactor = (1 / std::sqrt(2 * 2 * 2 * pi * pi * pi)) * (1 / (sigma * sigma * sigma));
-    double r2        = (x - mu) * (x - mu) + (y - mu) * (y - mu) + (z - mu) * (z - mu);
-
-    return -prefactor * std::exp(-r2 / (2 * sigma * sigma));
-}
-
 int main(int argc, char* argv[]) {
     ippl::initialize(argc, argv);
     {
@@ -35,8 +24,19 @@ int main(int argc, char* argv[]) {
         using Centering_t          = Mesh_t::DefaultCentering;
         using Layout_t            = ippl::FieldLayout<dim>;
 
+        // Get number of points and lagrange order from command line
         int pt         = std::atoi(argv[1]);
-        bool gauss_fct = std::atoi(argv[2]);
+        constexpr unsigned order = 3;
+
+        // true to create a field, false to create a FEMContainer
+        bool field = std::atoi(argv[2]);
+
+        // For field, we use h refinemendt, so increase number of points
+        // according to the order of the Lagrange polynomial
+        if(field) {
+           pt = order * (pt - 1) + 1;
+        }
+
         ippl::Index I(pt);
         ippl::NDIndex<dim> owned(I, I, I);
 
@@ -53,15 +53,44 @@ int main(int argc, char* argv[]) {
         ippl::Vector<double, 3> origin = {0.0, 0.0, 0.0};
         Mesh_t mesh(owned, hx, origin);
 
-        // Number of DOFs equal to 1 for each element
-        std::array<unsigned, dim + 1> DOFNum;
-        for(auto& dofnum : DOFNum) {
-            dofnum = 1;
+
+        if(field) {
+            // create field
+            ippl::Field<double, dim, Mesh_t, Centering_t> field(mesh, layout, 1);
+
+            field = 1.0;
+
+            std::cout << "Field created with order " << order << " and set to 1.0." << std::endl;
         }
+        else {
+            // Number of DOFs equal to 1 for each element
+            using femcontainer_full_type = std::conditional_t<
+                                                order == 1,
+                                                ippl::FEMContainer<double, dim,
+                                                    std::tuple<ippl::Vertex<dim>>,
+                                                    std::tuple<std::integral_constant<unsigned, 1>>>,
+                                                ippl::FEMContainer<double, dim,
+                                                    std::tuple<ippl::Vertex<dim>, ippl::EdgeX<dim>, ippl::EdgeY<dim>, ippl::EdgeZ<dim>,
+                                                            ippl::FaceXY<dim>, ippl::FaceXZ<dim>, ippl::FaceYZ<dim>, ippl::Hexaedron<dim>
+                                                    >,
+                                                    std::tuple<std::integral_constant<unsigned, 1>,
+                                                            std::integral_constant<unsigned, order - 1>,
+                                                            std::integral_constant<unsigned, order - 1>,
+                                                            std::integral_constant<unsigned, order - 1>,
+                                                            std::integral_constant<unsigned, (order - 1) * (order - 1)>,
+                                                            std::integral_constant<unsigned, (order - 1) * (order - 1)>,
+                                                            std::integral_constant<unsigned, (order - 1) * (order - 1)>,
+                                                            std::integral_constant<unsigned, (order - 1) * (order - 1) * (order - 1)>
+                                                    >
+                                                > // Full DOFs
+                                            >;
 
-        typedef ippl::FEMContainer<double, dim> field_type;
+            femcontainer_full_type femContainer(mesh, layout);
 
-        field_type testfield(DOFNum, mesh, layout);
+            femContainer = 1.0;
+
+            std::cout << "FEMContainer with order " << order << " created with DOFs on all element types." << std::endl;
+        }
     }
     ippl::finalize();
 
