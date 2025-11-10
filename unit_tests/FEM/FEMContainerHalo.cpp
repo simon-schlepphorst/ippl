@@ -6,6 +6,8 @@
 
 #include "TestUtils.h"
 #include "gtest/gtest.h"
+#include <FEM/Entity.h>
+#include <tuple>
 
 template <typename>
 class HaloTest;
@@ -20,8 +22,36 @@ public:
     using mesh_type      = ippl::UniformCartesian<T, Dim>;
     using centering_type = typename mesh_type::DefaultCentering;
     using layout_type    = ippl::FieldLayout<Dim>;
-    using femcontainer_vertex_only_type = std::conditional_t<Dim == 1, ippl::FEMContainer<T, Dim, 1, 0>, std::conditional_t<Dim == 2, ippl::FEMContainer<T, Dim, 1, 0, 0>, ippl::FEMContainer<T, Dim, 1, 0, 0, 0>>>; // Vertex-only DOFs
-    using femcontainer_full_type = std::conditional_t<Dim == 1, ippl::FEMContainer<T, Dim, 1, 1>, std::conditional_t<Dim == 2, ippl::FEMContainer<T, Dim, 1, 1, 1>, ippl::FEMContainer<T, Dim, 1, 1, 1, 1>>>; // Full DOFs
+
+    using vertex_only_entitys = std::tuple<ippl::Vertex<Dim>>;
+    using femcontainer_vertex_only_type = ippl::FEMContainer<T, Dim, std::tuple<ippl::Vertex<Dim>>,
+                                            std::tuple<std::integral_constant<unsigned, 1>>>; // Vertex-only DOFs
+
+    using full_entitys = std::conditional_t<Dim == 1, 
+                                        std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>>,
+                                    std::conditional_t<Dim == 2,
+                                        std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>, ippl::EdgeY<Dim>, ippl::FaceXY<Dim>>,
+                                    std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>, ippl::EdgeY<Dim>, ippl::EdgeZ<Dim>,
+                                        ippl::FaceXY<Dim>, ippl::FaceXZ<Dim>, ippl::FaceYZ<Dim>, ippl::Hexaedron<Dim>>>>;
+
+    using full_dofnums = std::conditional_t<Dim == 1,
+                                        std::tuple<std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>>,
+                                    std::conditional_t<Dim == 2,
+                                        std::tuple<std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>>,
+                                    std::tuple<std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>>>>;
+
+    using femcontainer_full_type =  ippl::FEMContainer<T, Dim, full_entitys, full_dofnums>; // Full DOFs
 
     HaloTest()
         : nPoints(getGridSizes<Dim>()) {
@@ -161,74 +191,88 @@ TYPED_TEST(HaloTest, FillHalo) {
     auto& femVertex = this->femContainerVertexOnly;
 
     std::cout << "Testing FillHalo on vertex-only FEMContainer..." << std::endl;
-    *femVertex = 1;
+    *femVertex = 42;
     femVertex->fillHalo();
 
-    for (unsigned i = 0; i < femVertex->getSize(); i++) {
-        if (femVertex->hasView(i)) {
-            auto view = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), femVertex->getView(i));
+    // Check that all halo values are filled correctly
+    std::apply([&](auto... entity_types) {
+        ((void)[&]<typename EntityType>(EntityType) {
+            // Process each entity type in the vertex_only_entitys tuple
+            auto view = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), femVertex->template getView<EntityType>());
             nestedViewLoop(view, 0, [&]<typename... Idx>(const Idx... args) {
-                assertEqual<typename TestFixture::value_type>(view(args...), 1);
+                unsigned int nDOFs = femVertex-> template getNumDOFs<EntityType>();
+                for (unsigned int i = 0; i < nDOFs; i++) {
+                    assertEqual<typename TestFixture::value_type>(view(args...)[i], 42);
+                }
             });
-        }
-    }
-
+        }(entity_types), ...);
+    }, femVertex->getEntityTypes());
     
     // Test halo operations on full FEMContainer (has DOFs on vertices, edges, faces, etc.)
     auto& femFull = this->femContainerFull;
     
     std::cout << "Testing FillHalo on full FEMContainer..." << std::endl;
-    *femFull = 1;
+    *femFull = 42;
     femFull->fillHalo();
 
-    for (unsigned i = 0; i < femFull->getSize(); i++) {
-        if (femFull->hasView(i)) {
-            auto view = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), femFull->getView(i));
+    
+    // Check that all halo values are filled correctly
+    std::apply([&](auto... entity_types) {
+        ((void)[&]<typename EntityType>(EntityType) {
+            // Process each entity type in the vertex_only_entitys tuple
+            auto view = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), femFull->template getView<EntityType>());
             nestedViewLoop(view, 0, [&]<typename... Idx>(const Idx... args) {
-                assertEqual<typename TestFixture::value_type>(view(args...), 1);
+                unsigned int nDOFs = femFull-> template getNumDOFs<EntityType>();
+                for (unsigned int i = 0; i < nDOFs; i++) {
+                    assertEqual<typename TestFixture::value_type>(view(args...)[i], 42);
+                }
             });
-        }
-    }
+        }(entity_types), ...);
+    }, femFull->getEntityTypes());
 }
+
 
 TYPED_TEST(HaloTest, AccumulateHalo) {
     constexpr unsigned Dim = TestFixture::dim;
 
     auto& femVertex = this->femContainerVertexOnly;
 
-    *femVertex      = 1;
+    *femVertex = 1;
     const unsigned int nghost = femVertex->getNGhost();
 
-    for (unsigned i = 0; i < femVertex->getSize(); i++) {
-        if (femVertex->hasView(i)) {
-            auto mirror = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), femVertex->getView(i));
-            auto layout = femVertex->getLayout(i);
-            
-            if (ippl::Comm->size() > 1) {
-                const auto& neighbors   = layout->getNeighbors();
-                ippl::NDIndex<Dim> lDom = layout->getLocalNDIndex();
+    std::apply([&](auto... entity_types) {
+        ((void)[&]<typename EntityType>(EntityType) {
 
-                auto arrayToCube = []<size_t... Dims>(const std::index_sequence<Dims...>&,
-                                                      const std::array<ippl::e_cube_tag, Dim>& tags) {
+            auto& layout = femVertex->template getLayout<EntityType>();
+            unsigned int nDOFs = femVertex-> template getNumDOFs<EntityType>();
+
+            auto mirror = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), femVertex->template getView<EntityType>());
+
+            if (ippl::Comm->size() > 1) {
+                const auto& neighbors   = layout.getNeighbors();
+                ippl::NDIndex<Dim> lDom = layout.getLocalNDIndex();
+
+                auto arrayToCube = [Dim]<size_t... Dims>(const std::index_sequence<Dims...>&,
+                                                    const std::array<ippl::e_cube_tag, Dim>& tags) {
                     return ippl::detail::getCube<Dim>(tags[Dims]...);
                 };
                 auto indexToTags = [&]<size_t... Dims, typename... Tag>(const std::index_sequence<Dims...>&,
                                                                         Tag... tags) {
                     return std::array<ippl::e_cube_tag, Dim>{(tags == nghost ? ippl::LOWER
-                                                              : tags == lDom[Dims].length() + nghost - 1
-                                                                  ? ippl::UPPER
-                                                                  : ippl::IS_PARALLEL)...};
+                                                            : tags == lDom[Dims].length() + nghost - 1
+                                                                ? ippl::UPPER
+                                                                : ippl::IS_PARALLEL)...};
                 };
-        
+
                 nestedViewLoop(mirror, nghost, [&]<typename... Idx>(const Idx... args) {
                     auto encoding = indexToTags(std::make_index_sequence<Dim>{}, args...);
                     auto cube     = arrayToCube(std::make_index_sequence<Dim>{}, encoding);
-        
+
                     // ignore all interior points
                     if (cube == ippl::detail::countHypercubes(Dim) - 1) {
                         return;
                     }
-        
+
                     unsigned int n = 0;
                     nestedLoop<Dim>(
                         [&](unsigned dl) -> size_t {
@@ -240,35 +284,35 @@ TYPED_TEST(HaloTest, AccumulateHalo) {
                         [&]<typename... Flag>(const Flag... flags) {
                             auto adjacent = ippl::detail::getCube<Dim>(
                                 (flags == 0   ? ippl::IS_PARALLEL
-                                 : flags < 20 ? (flags & 1 ? ippl::LOWER : ippl::IS_PARALLEL)
-                                              : (flags & 1 ? ippl::UPPER : ippl::IS_PARALLEL))...);
+                                : flags < 20 ? (flags & 1 ? ippl::LOWER : ippl::IS_PARALLEL)
+                                            : (flags & 1 ? ippl::UPPER : ippl::IS_PARALLEL))...);
                             if (adjacent == ippl::detail::countHypercubes(Dim) - 1) {
                                 return;
                             }
                             n += neighbors[adjacent].size();
                         });
-        
+
                     if (n > 0) {
-                        mirror(args...) = 1. / (n + 1);
+                        for(unsigned int i = 0; i < nDOFs; i++) {
+                            mirror(args...)[i] = 1. / (n + 1);
+                        }
                     }
                 });
-                Kokkos::deep_copy(femVertex->getView(i), mirror);
+                Kokkos::deep_copy(femVertex->template getView<EntityType>(), mirror);
             }
-        }
-    }
 
+            femVertex->fillHalo();
+            femVertex->accumulateHalo();
 
-    femVertex->fillHalo();
-    femVertex->accumulateHalo();
+            Kokkos::deep_copy(mirror, femVertex->template getView<EntityType>());
 
-    for (unsigned i = 0; i < femVertex->getSize(); i++) {
-        if (femVertex->hasView(i)) {
-            auto view = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), femVertex->getView(i));
-            nestedViewLoop(view, nghost, [&]<typename... Idx>(const Idx... args) {
-                assertEqual<typename TestFixture::value_type>(view(args...), 1);
+            nestedViewLoop(mirror, nghost, [&]<typename... Idx>(const Idx... args) {
+                for(unsigned int i = 0; i < nDOFs; i++) {
+                    assertEqual<typename TestFixture::value_type>(mirror(args...)[i], 1);
+                }
             });
-        }
-    }
+        }(entity_types), ...);
+    }, femVertex->getEntityTypes());
 }
 
 int main(int argc, char* argv[]) {
