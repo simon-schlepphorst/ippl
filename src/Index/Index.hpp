@@ -270,7 +270,14 @@ namespace ippl {
 
     KOKKOS_INLINE_FUNCTION Index Index::cut(unsigned int ncells) const {
         PAssert_GT(length_m, ncells);
-        return Index(first_m, length_m - ncells, stride_m);
+
+        Index index;
+
+        index.first_m  = this->first_m;
+        index.length_m = this->length_m - ncells;
+        index.stride_m = this->stride_m;
+
+        return index;
     }
 
     KOKKOS_INLINE_FUNCTION static Index do_intersect(const Index& a, const Index& b) {
