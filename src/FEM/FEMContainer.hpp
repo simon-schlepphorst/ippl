@@ -53,11 +53,11 @@ namespace ippl {
     template <typename T, unsigned Dim, typename EntityTypes, typename DOFNums>
     FEMContainer<T, Dim, EntityTypes, DOFNums>& FEMContainer<T, Dim, EntityTypes, DOFNums>::operator=(T value) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            (([]<std::size_t I>(auto& field, T val) {
-                constexpr std::size_t arraySize = std::get<I>(DOFNums{}).value;
-                DOFArray<T, arraySize> arr(val);
-                field = arr;
-            }.template operator()<Is>(std::get<Is>(data_m), value)), ...);
+            (([&]() {
+                constexpr std::size_t arraySize = std::get<Is>(DOFNums{}).value;
+                DOFArray<T, arraySize> arr(value);
+                std::get<Is>(data_m) = arr;
+            }()), ...);
         }(std::make_index_sequence<std::tuple_size_v<decltype(data_m)>>{});
        
         return *this;
@@ -66,11 +66,11 @@ namespace ippl {
     template <typename T, unsigned Dim, typename EntityTypes, typename DOFNums>
     FEMContainer<T, Dim, EntityTypes, DOFNums>& FEMContainer<T, Dim, EntityTypes, DOFNums>::operator+=(T value) {
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            (([]<std::size_t I>(auto& field, T val) {
-                constexpr std::size_t arraySize = std::get<I>(DOFNums{}).value;
-                DOFArray<T, arraySize> arr(val);
-                field += arr;
-            }.template operator()<Is>(std::get<Is>(data_m), value)), ...);
+            (([&]() {
+                constexpr std::size_t arraySize = std::get<Is>(DOFNums{}).value;
+                DOFArray<T, arraySize> arr(value);
+                std::get<Is>(data_m) += arr;
+            }()), ...);
         }(std::make_index_sequence<std::tuple_size_v<decltype(data_m)>>{});
        
         return *this;
