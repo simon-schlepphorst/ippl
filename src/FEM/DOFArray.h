@@ -10,17 +10,21 @@ namespace ippl {
     struct DOFArray {
         Kokkos::Array<T, N> data;
 
+        KOKKOS_INLINE_FUNCTION
         DOFArray() = default;
 
+        KOKKOS_INLINE_FUNCTION
         DOFArray(T value) {
             for (std::size_t i = 0; i < N; ++i) {
                 data[i] = value;
             }
         }
 
+        KOKKOS_INLINE_FUNCTION
         T& operator[](int i) { return data[i]; }          // read/write access
         const T& operator[](int i) const { return data[i]; } // read-only access
 
+        KOKKOS_INLINE_FUNCTION
         DOFArray& operator+=(const DOFArray& other) {
             for (std::size_t i = 0; i < N; ++i) {
                 data[i] += other.data[i];
@@ -28,6 +32,7 @@ namespace ippl {
             return *this;
         }
 
+        KOKKOS_INLINE_FUNCTION
         DOFArray& operator+=(T value) {
             for (std::size_t i = 0; i < N; ++i) {
                 data[i] += value;
@@ -35,6 +40,7 @@ namespace ippl {
             return *this;
         }
 
+        KOKKOS_INLINE_FUNCTION
         DOFArray operator+(T value) const {
             DOFArray result;
             for (std::size_t i = 0; i < N; ++i) {
@@ -43,6 +49,7 @@ namespace ippl {
             return result;
         }
 
+        KOKKOS_INLINE_FUNCTION
         DOFArray operator-(T value) const {
             DOFArray result;
             for (std::size_t i = 0; i < N; ++i) {
@@ -50,7 +57,7 @@ namespace ippl {
             }
             return result;
         }
-
+        KOKKOS_INLINE_FUNCTION
         DOFArray operator=(T value) {
             for (std::size_t i = 0; i < N; ++i) {
                 data[i] = value;
