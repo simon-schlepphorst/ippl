@@ -32,7 +32,7 @@ public:
                                     std::conditional_t<Dim == 2,
                                         std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>, ippl::EdgeY<Dim>, ippl::FaceXY<Dim>>,
                                     std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>, ippl::EdgeY<Dim>, ippl::EdgeZ<Dim>,
-                                        ippl::FaceXY<Dim>, ippl::FaceXZ<Dim>, ippl::FaceYZ<Dim>, ippl::Hexaedron<Dim>>>>;
+                                        ippl::FaceXY<Dim>, ippl::FaceXZ<Dim>, ippl::FaceYZ<Dim>, ippl::Hexahedron<Dim>>>>;
 
     using full_dofnums = std::conditional_t<Dim == 1,
                                         std::tuple<std::integral_constant<unsigned, 1>,

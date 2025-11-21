@@ -135,10 +135,10 @@ namespace ippl {
     };
 
     template <unsigned Dim>
-    struct Hexaedron : Entity<Hexaedron<Dim>, Dim> {
+    struct Hexahedron : Entity<Hexahedron<Dim>, Dim> {
         public:
         static constexpr std::array<bool, Dim> dir = [] {
-            static_assert(Dim == 3, "Hexaedron is only defined for Dim == 3");
+            static_assert(Dim == 3, "Hexahedron is only defined for Dim == 3");
             std::array<bool, Dim> arr = {};
             for (unsigned i = 0; i < Dim; ++i) {
                 arr[i] = true;
