@@ -1,0 +1,159 @@
+// Class DOFHandler
+//   This class is responsible for handling the degrees of freedom (DOFs) in a finite
+//   element mesh and space. It provides methods to access and manipulate DOFs,
+//   including mapping between local DOF indices and their global position in the FEMContainer.
+
+#ifndef IPPL_DOFHANDLER_H
+#define IPPL_DOFHANDLER_H
+
+#include <Kokkos_Core.hpp>
+
+#include "FEM/FiniteElementSpaceTraits.h"
+#include "FEM/FEMContainer.h"
+#include "Utility/IpplException.h"
+#include <array>
+
+namespace ippl {
+
+    /**
+     * @brief DOFHandler maps local element DOFs to entity types and local entity indices
+     * 
+     * The DOFHandler's main job is to answer: "Given an element and a local DOF number,
+     * which entity type does this DOF belong to, and what is the local index within that entity?"
+     * 
+     * @tparam T The floating point type
+     * @tparam SpaceTag The finite element space type (LagrangeSpaceTag, NedelecSpaceTag, etc.)
+     * @tparam Dim The spatial dimension  
+     * @tparam Order The polynomial order
+     */
+    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
+    class DOFHandler {
+    public:
+        // Space traits
+        using SpaceTraits = FiniteElementSpaceTraits<SpaceTag, Dim, Order>;
+        using EntityTypes = typename SpaceTraits::EntityTypes;
+        using DOFNums = typename SpaceTraits::DOFNums;
+        
+        // Compatible FEMContainer type
+        using FEMContainer_t = FEMContainer<T, Dim, EntityTypes, DOFNums>;
+        
+        static constexpr unsigned dim = Dim;
+        static constexpr unsigned order = Order;
+        static constexpr unsigned dofsPerElement = SpaceTraits::dofsPerElement;
+        
+        // Mesh types
+        using Mesh_t = UniformCartesian<T, Dim>;
+        using Layout_t = FieldLayout<Dim>;
+        using indices_t = Vector<size_t, Dim>;
+
+        /**
+         * @brief Structure to hold DOF mapping information
+         */
+        struct DOFMapping {
+            size_t entityTypeIndex;                         // Index in the EntityTypes tuple
+            Kokkos::Array<size_t, Dim> entityLocalIndex;    // Offset from the NDIndex of the element to the NDIndex of the DOF (0 or 1 in each dimension)
+            size_t entityLocalDOF;                          // Local DOF number within the entity
+        };
+
+        ///////////////////////////////////////////////////////////////////////
+        // Constructors ///////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////
+        
+        DOFHandler();
+        DOFHandler(Mesh_t& mesh, const Layout_t& layout);
+        
+        void initialize(Mesh_t& mesh, const Layout_t& layout);
+
+        ///////////////////////////////////////////////////////////////////////
+        // Core DOF Mapping Functions ////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////
+
+        /**
+         * @brief Map local element DOF to entity information
+         * 
+         * @param localElementDOF Local DOF number within the element (0 to dofsPerElement-1)
+         * @return DOFMapping containing entity type index, entity local DOF, and entity local index
+         */
+        KOKKOS_FUNCTION DOFMapping getElementDOFMapping(const size_t& localElementDOF) const;
+
+        /**
+         * @brief Get element NDIndex from linear element index
+         *
+         * @param elementIndex Linear element index
+         * @return NDIndex of the element in the mesh
+         */
+        KOKKOS_FUNCTION indices_t getElementNDIndex(const size_t& elementIndex) const;
+
+        /**
+         * @brief Get the starting local DOF index for a specific entity type
+         *
+         * Since DOFs are ordered by entity type (vertices, then edges, then faces, etc.),
+         * this returns the first DOF index belonging to the given entity type.
+         *
+         * @tparam EntityType The entity type
+         * @return Starting index for this entity type's DOFs
+         */
+        template <typename EntityType>
+        static constexpr size_t getEntityDOFStart() {
+            return SpaceTraits::template getEntityDOFStart<EntityType>();
+        }
+
+        /**
+         * @brief Get the ending local DOF index (exclusive) for a specific entity type
+         *
+         * Returns one past the last DOF index for this entity type.
+         * Use with getEntityDOFStart() to iterate: for (size_t i = start; i < end; ++i)
+         *
+         * @tparam EntityType The entity type
+         * @return Ending index (exclusive) for this entity type's DOFs
+         */
+        template <typename EntityType>
+        static constexpr size_t getEntityDOFEnd() {
+            return SpaceTraits::template getEntityDOFEnd<EntityType>();
+        }
+
+
+    private:
+        ///////////////////////////////////////////////////////////////////////
+        // Member Variables ///////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////
+        
+        Mesh_t* mesh_m;
+        const Layout_t* layout_m;
+        
+        // Number of elements in each direction
+        Vector<size_t, Dim> ne_m;
+
+        // DOF mapping table (device view)
+        Kokkos::View<DOFMapping*> dofMappingTable_m;
+
+        ///////////////////////////////////////////////////////////////////////
+        // Space-Specific DOF Mapping Table Filling ///////////////////////////
+        ///////////////////////////////////////////////////////////////////////
+
+        /**
+         * @brief Fill DOF mapping table for Lagrange elements
+         */
+        void fillLagrangeDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const;
+
+        /**
+         * @brief Fill DOF mapping table for Nédélec elements
+         */
+        void fillNedelecDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const;
+    };
+
+    ///////////////////////////////////////////////////////////////////////
+    // Type Aliases for Convenience ///////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    template <typename T, unsigned Dim, unsigned Order>
+    using LagrangeDOFHandler = DOFHandler<T, LagrangeSpaceTag, Dim, Order>;
+
+    template <typename T, unsigned Dim, unsigned Order>
+    using NedelecDOFHandler = DOFHandler<T, NedelecSpaceTag, Dim, Order>;
+
+}  // namespace ippl
+
+#include "DOFHandler.hpp"
+
+#endif  // IPPL_DOFHANDLER_H
