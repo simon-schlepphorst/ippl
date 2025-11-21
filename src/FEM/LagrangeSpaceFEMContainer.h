@@ -122,18 +122,6 @@ namespace ippl {
         KOKKOS_FUNCTION size_t numGlobalDOFs() const override;
 
         /**
-         * @brief Get the elements local DOF from the element index and global DOF
-         * index
-         *
-         * @param elementIndex size_t - The index of the element
-         * @param globalDOFIndex size_t - The global DOF index
-         *
-         * @return size_t - The local DOF index
-         */
-        KOKKOS_FUNCTION size_t getLocalDOFIndex(const size_t& elementIndex,
-                                 const size_t& globalDOFIndex) const override;
-
-        /**
          * @brief Get the global DOF index from the element index and local DOF
          *
          * @param elementIndex size_t - The index of the element
@@ -191,13 +179,6 @@ namespace ippl {
          */
         KOKKOS_FUNCTION point_t evaluateRefElementShapeFunctionGradient(
             const size_t& localDOF, const point_t& localPoint) const override;
-
-        /**
-         * @brief Evaluates the local element matrix A_K for the given evalFunction
-         *
-         */
-        template <typename F>
-        void evaluateAK(F& evalFunction);
 
         ///////////////////////////////////////////////////////////////////////
         /// Assembly operations ///////////////////////////////////////////////

@@ -178,18 +178,6 @@ namespace ippl {
         KOKKOS_FUNCTION virtual size_t numGlobalDOFs() const = 0;
 
         /**
-         * @brief Get the elements local DOF from the element index and global DOF
-         * index
-         *
-         * @param elementIndex size_t - The index of the element
-         * @param globalDOFIndex size_t - The global DOF index
-         *
-         * @return size_t - The local DOF index
-         */
-        KOKKOS_FUNCTION virtual size_t getLocalDOFIndex(const size_t& elementIndex,
-                                         const size_t& globalDOFIndex) const = 0;
-
-        /**
          * @brief Get the global DOF index from the element index and local DOF
          *
          * @param elementIndex size_t - The index of the element
