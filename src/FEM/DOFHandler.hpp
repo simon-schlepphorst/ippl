@@ -31,15 +31,15 @@ namespace ippl {
         dofMappingTable_m = Kokkos::View<DOFMapping*>("DOFMappingTable", dofsPerElement);
 
         // Create host mirror and fill the mapping table on host
-        auto h_table = Kokkos::create_mirror_view(dofMappingTable_m);
+        dofMappingTable_h = Kokkos::create_mirror_view(dofMappingTable_m);
         if constexpr (std::is_same_v<SpaceTag, LagrangeSpaceTag>) {
-            fillLagrangeDOFMappingTable(h_table);
+            fillLagrangeDOFMappingTable(dofMappingTable_h);
         } else if constexpr (std::is_same_v<SpaceTag, NedelecSpaceTag>) {
-            fillNedelecDOFMappingTable(h_table);
+            fillNedelecDOFMappingTable(dofMappingTable_h);
         }
 
         // Deep copy from host to device
-        Kokkos::deep_copy(dofMappingTable_m, h_table);
+        Kokkos::deep_copy(dofMappingTable_m, dofMappingTable_h);
     }
     
     template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
@@ -272,8 +272,11 @@ namespace ippl {
     template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
     KOKKOS_INLINE_FUNCTION typename DOFHandler<T, SpaceTag, Dim, Order>::DOFMapping
     DOFHandler<T, SpaceTag, Dim, Order>::getElementDOFMapping(const size_t& localElementDOF) const {
-        // Access the device view directly
-        return dofMappingTable_m(localElementDOF);
+        // Use Kokkos macros to select host mirror on host, device view on device
+        DOFMapping result;
+        KOKKOS_IF_ON_DEVICE((result = dofMappingTable_m(localElementDOF);))
+        KOKKOS_IF_ON_HOST((result = dofMappingTable_h(localElementDOF);))
+        return result;
     }
 
     template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>

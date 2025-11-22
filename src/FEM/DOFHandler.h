@@ -70,11 +70,13 @@ namespace ippl {
 
         /**
          * @brief Map local element DOF to entity information
-         * 
+         *
+         * Works on both host and device. Uses host mirror on host, device view on device.
+         *
          * @param localElementDOF Local DOF number within the element (0 to dofsPerElement-1)
          * @return DOFMapping containing entity type index, entity local DOF, and entity local index
          */
-        KOKKOS_FUNCTION DOFMapping getElementDOFMapping(const size_t& localElementDOF) const;
+        KOKKOS_INLINE_FUNCTION DOFMapping getElementDOFMapping(const size_t& localElementDOF) const;
 
         /**
          * @brief Get element NDIndex from linear element index
@@ -165,6 +167,9 @@ namespace ippl {
 
         // DOF mapping table (device view)
         Kokkos::View<DOFMapping*> dofMappingTable_m;
+
+        // DOF mapping table (host mirror for host access)
+        typename Kokkos::View<DOFMapping*>::HostMirror dofMappingTable_h;
 
         ///////////////////////////////////////////////////////////////////////
         // Space-Specific DOF Mapping Table Filling ///////////////////////////
