@@ -1,13 +1,19 @@
-// Class LagrangeSpaceOld
-//    This is the LagrangeSpaceOld class. It is a class representing a Lagrange space
+// Class LagrangeSpace
+//    This is the LagrangeSpace class. It is a class representing a Lagrange space
 //    for finite element methods on a structured grid.
 
-#ifndef IPPL_LAGRANGESPACEOLD_H
-#define IPPL_LAGRANGESPACEOLD_H
+#ifndef IPPL_LAGRANGESPACE_H
+#define IPPL_LAGRANGESPACE_H
 
 #include <cmath>
 
+#include "FEM/DOFHandler.h"
 #include "FEM/FiniteElementSpace.h"
+
+constexpr unsigned getLagrangeNumElementDOFs(unsigned Dim, unsigned Order) {
+    // needs to be constexpr pow function to work at compile time. Kokkos::pow doesn't work.
+    return static_cast<unsigned>(power(static_cast<int>(Order + 1), static_cast<int>(Dim)));
+}
 
 namespace ippl {
 
@@ -25,7 +31,7 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     // requires IsQuadrature<QuadratureType>
-    class LagrangeSpaceOld
+    class LagrangeSpace
         : public FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
                                     QuadratureType, FieldLHS, FieldRHS> {
     public:
@@ -63,23 +69,26 @@ namespace ippl {
         typedef typename detail::ViewType<T, Dim, Kokkos::MemoryTraits<Kokkos::Atomic>>::view_type
             AtomicViewType;
 
+        // DOFHandler type for this space
+        typedef DOFHandler<T, LagrangeSpaceTag, Dim, Order> DOFHandler_t;
+
         ///////////////////////////////////////////////////////////////////////
         // Constructors ///////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////
 
         /**
-         * @brief Construct a new LagrangeSpaceOld object
+         * @brief Construct a new LagrangeSpace object
          *
          * @param mesh Reference to the mesh
          * @param ref_element Reference to the reference element
          * @param quadrature Reference to the quadrature rule
          * @param layout Reference to the field layout
          */
-        LagrangeSpaceOld(UniformCartesian<T, Dim>& mesh, ElementType& ref_element,
-                         const QuadratureType& quadrature, const Layout_t& layout);
+        LagrangeSpace(UniformCartesian<T, Dim>& mesh, ElementType& ref_element,
+                      const QuadratureType& quadrature, const Layout_t& layout);
 
         /**
-         * @brief Construct a new LagrangeSpaceOld object (without layout)
+         * @brief Construct a new LagrangeSpace object (without layout)
          * This constructor is made to work with the default constructor in
          * FEMPoissonSolver.h such that it is compatible with alpine.
          *
@@ -87,11 +96,11 @@ namespace ippl {
          * @param ref_element Reference to the reference element
          * @param quadrature Reference to the quadrature rule
          */
-        LagrangeSpaceOld(UniformCartesian<T, Dim>& mesh, ElementType& ref_element,
-                         const QuadratureType& quadrature);
+        LagrangeSpace(UniformCartesian<T, Dim>& mesh, ElementType& ref_element,
+                      const QuadratureType& quadrature);
 
         /**
-         * @brief Initialize a LagrangeSpaceOld object created with the default constructor
+         * @brief Initialize a LagrangeSpace object created with the default constructor
          *
          * @param mesh Reference to the mesh
          * @param layout Reference to the field layout
@@ -324,6 +333,8 @@ namespace ippl {
 
         // One time allocated field of type FieldLHS to store results
         FieldLHS resultField;
+        /// DOFHandler for this space /////////////////////////////////////////
+        DOFHandler_t dofHandler_m;
     };
 
 }  // namespace ippl

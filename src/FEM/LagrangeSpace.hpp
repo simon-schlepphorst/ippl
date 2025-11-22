@@ -1,16 +1,16 @@
 
 namespace ippl {
 
-    // LagrangeSpaceOld constructor, which calls the FiniteElementSpace constructor,
+    // LagrangeSpace constructor, which calls the FiniteElementSpace constructor,
     // and decomposes the elements among ranks according to layout.
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                     FieldRHS>::LagrangeSpaceOld(UniformCartesian<T, Dim>& mesh,
-                                                 ElementType& ref_element,
-                                                 const QuadratureType& quadrature, Layout_t& layout)
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::LagrangeSpace(
+        UniformCartesian<T, Dim>& mesh, ElementType& ref_element, const QuadratureType& quadrature,
+        const Layout_t& layout)
         : FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
-                             QuadratureType, FieldLHS, FieldRHS>(mesh, ref_element, quadrature) {
+                             QuadratureType, FieldLHS, FieldRHS>(mesh, ref_element, quadrature)
+        , dofHandler_m(mesh, layout) {
         // Assert that the dimension is either 1, 2 or 3.
         static_assert(Dim >= 1 && Dim <= 3,
                       "Finite Element space only supports 1D, 2D and 3D meshes");
@@ -22,13 +22,11 @@ namespace ippl {
         resultField.initialize(mesh, layout);
     }
 
-    // LagrangeSpaceOld constructor, which calls the FiniteElementSpace constructor.
+    // LagrangeSpace constructor, which calls the FiniteElementSpace constructor.
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                     FieldRHS>::LagrangeSpaceOld(UniformCartesian<T, Dim>& mesh,
-                                                 ElementType& ref_element,
-                                                 const QuadratureType& quadrature)
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::LagrangeSpace(
+        UniformCartesian<T, Dim>& mesh, ElementType& ref_element, const QuadratureType& quadrature)
         : FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
                              QuadratureType, FieldLHS, FieldRHS>(mesh, ref_element, quadrature) {
         // Assert that the dimension is either 1, 2 or 3.
@@ -36,16 +34,18 @@ namespace ippl {
                       "Finite Element space only supports 1D, 2D and 3D meshes");
     }
 
-    // LagrangeSpaceOld initializer, to be made available to the FEMPoissonSolver
+    // LagrangeSpace initializer, to be made available to the FEMPoissonSolver
     // such that we can call it from setRhs.
     // Sets the correct mesh ad decomposes the elements among ranks according to layout.
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    void LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                          FieldRHS>::initialize(UniformCartesian<T, Dim>& mesh,
-                                                const Layout_t& layout) {
+    void LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::initialize(
+        UniformCartesian<T, Dim>& mesh, const Layout_t& layout) {
         FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
                            QuadratureType, FieldLHS, FieldRHS>::setMesh(mesh);
+
+        // Initialize the DOFHandler
+        dofHandler_m.initialize(mesh, layout);
 
         // Initialize the elementIndices view
         initializeElementIndices(layout);
@@ -57,8 +57,8 @@ namespace ippl {
     // Initialize element indices Kokkos View by distributing elements among MPI ranks.
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    void LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                          FieldRHS>::initializeElementIndices(const Layout_t& layout) {
+    void LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                       FieldRHS>::initializeElementIndices(const Layout_t& layout) {
         const auto& ldom = layout.getLocalNDIndex();
         int npoints      = ldom.size();
         auto first       = ldom.first();
@@ -115,8 +115,8 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    KOKKOS_FUNCTION size_t LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                                            FieldRHS>::numGlobalDOFs() const {
+    KOKKOS_FUNCTION size_t LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                                         FieldRHS>::numGlobalDOFs() const {
         size_t num_global_dofs = 1;
         for (size_t d = 0; d < Dim; ++d) {
             num_global_dofs *= this->nr_m[d] * Order;
@@ -128,9 +128,8 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     KOKKOS_FUNCTION size_t
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                     FieldRHS>::getLocalDOFIndex(const size_t& elementIndex,
-                                                 const size_t& globalDOFIndex) const {
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::getLocalDOFIndex(
+        const size_t& elementIndex, const size_t& globalDOFIndex) const {
         static_assert(Dim == 1 || Dim == 2 || Dim == 3, "Dim must be 1, 2 or 3");
         // TODO fix not order independent, only works for order 1
         static_assert(Order == 1, "Only order 1 is supported at the moment");
@@ -157,9 +156,9 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     KOKKOS_FUNCTION size_t
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                     FieldRHS>::getGlobalDOFIndex(const size_t& elementIndex,
-                                                  const size_t& localDOFIndex) const {
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                  FieldRHS>::getGlobalDOFIndex(const size_t& elementIndex,
+                                               const size_t& localDOFIndex) const {
         const auto global_dofs = this->LagrangeSpace::getGlobalDOFIndices(elementIndex);
 
         return global_dofs[localDOFIndex];
@@ -167,10 +166,10 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    KOKKOS_FUNCTION Vector<size_t, LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType,
-                                                    FieldLHS, FieldRHS>::numElementDOFs>
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                     FieldRHS>::getLocalDOFIndices() const {
+    KOKKOS_FUNCTION Vector<size_t, LagrangeSpace<T, Dim, Order, ElementType, QuadratureType,
+                                                 FieldLHS, FieldRHS>::numElementDOFs>
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                  FieldRHS>::getLocalDOFIndices() const {
         Vector<size_t, numElementDOFs> localDOFs;
 
         for (size_t dof = 0; dof < numElementDOFs; ++dof) {
@@ -182,10 +181,10 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    KOKKOS_FUNCTION Vector<size_t, LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType,
-                                                    FieldLHS, FieldRHS>::numElementDOFs>
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                     FieldRHS>::getGlobalDOFIndices(const size_t& elementIndex) const {
+    KOKKOS_FUNCTION Vector<size_t, LagrangeSpace<T, Dim, Order, ElementType, QuadratureType,
+                                                 FieldLHS, FieldRHS>::numElementDOFs>
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                  FieldRHS>::getGlobalDOFIndices(const size_t& elementIndex) const {
         Vector<size_t, numElementDOFs> globalDOFs(0);
 
         // get element pos
@@ -263,11 +262,11 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     KOKKOS_FUNCTION T
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::
         evaluateRefElementShapeFunction(
             const size_t& localDOF,
-            const LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                                   FieldRHS>::point_t& localPoint) const {
+            const LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                                FieldRHS>::point_t& localPoint) const {
         static_assert(Order == 1, "Only order 1 is supported at the moment");
         // Assert that the local vertex index is valid.
         assert(localDOF < numElementDOFs
@@ -296,13 +295,13 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    KOKKOS_FUNCTION typename LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                                              FieldRHS>::point_t
-    LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::
+    KOKKOS_FUNCTION typename LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                                           FieldRHS>::point_t
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::
         evaluateRefElementShapeFunctionGradient(
             const size_t& localDOF,
-            const LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                                   FieldRHS>::point_t& localPoint) const {
+            const LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                                FieldRHS>::point_t& localPoint) const {
         // TODO fix not order independent, only works for order 1
         static_assert(Order == 1 && "Only order 1 is supported at the moment");
 
@@ -356,8 +355,8 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    FieldLHS LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                              FieldRHS>::evaluateAx(FieldLHS& field, F& evalFunction) const {
+    FieldLHS LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                           FieldRHS>::evaluateAx(FieldLHS& field, F& evalFunction) const {
         Inform m("");
 
         // declare timers
@@ -511,8 +510,8 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    FieldLHS LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                              FieldRHS>::evaluateAx_lower(FieldLHS& field, F& evalFunction) const {
+    FieldLHS LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                           FieldRHS>::evaluateAx_lower(FieldLHS& field, F& evalFunction) const {
         Inform m("");
 
         // declare timer
@@ -653,8 +652,8 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    FieldLHS LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                              FieldRHS>::evaluateAx_upper(FieldLHS& field, F& evalFunction) const {
+    FieldLHS LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                           FieldRHS>::evaluateAx_upper(FieldLHS& field, F& evalFunction) const {
         Inform m("");
 
         // declare timer
@@ -795,9 +794,9 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    FieldLHS LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                              FieldRHS>::evaluateAx_upperlower(FieldLHS& field,
-                                                               F& evalFunction) const {
+    FieldLHS LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                           FieldRHS>::evaluateAx_upperlower(FieldLHS& field,
+                                                            F& evalFunction) const {
         Inform m("");
 
         // declare timer
@@ -936,9 +935,9 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    FieldLHS LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                              FieldRHS>::evaluateAx_inversediag(FieldLHS& field,
-                                                                F& evalFunction) const {
+    FieldLHS LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                           FieldRHS>::evaluateAx_inversediag(FieldLHS& field,
+                                                             F& evalFunction) const {
         Inform m("");
 
         // declare timer
@@ -1067,8 +1066,8 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    FieldLHS LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                              FieldRHS>::evaluateAx_diag(FieldLHS& field, F& evalFunction) const {
+    FieldLHS LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                           FieldRHS>::evaluateAx_diag(FieldLHS& field, F& evalFunction) const {
         Inform m("");
 
         // declare timer
@@ -1187,8 +1186,8 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    FieldLHS LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                              FieldRHS>::evaluateAx_lift(FieldLHS& field, F& evalFunction) const {
+    FieldLHS LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                           FieldRHS>::evaluateAx_lift(FieldLHS& field, F& evalFunction) const {
         Inform m("");
 
         // declare timer
@@ -1302,8 +1301,8 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    void LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                          FieldRHS>::evaluateLoadVector(FieldRHS& field) const {
+    void LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                       FieldRHS>::evaluateLoadVector(FieldRHS& field) const {
         Inform m("");
 
         // declare timer
@@ -1497,12 +1496,12 @@ namespace ippl {
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     template <typename F>
-    T LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                       FieldRHS>::computeErrorL2(const FieldLHS& u_h, const F& u_sol) const {
+    T LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::computeErrorL2(
+        const FieldLHS& u_h, const F& u_sol) const {
         if (this->quadrature_m.getOrder() < (2 * Order + 1)) {
             // throw exception
             throw IpplException(
-                "LagrangeSpaceOld::computeErrorL2()",
+                "LagrangeSpace::computeErrorL2()",
                 "Order of quadrature rule for error computation should be > 2*p + 1");
         }
 
@@ -1581,12 +1580,12 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    T LagrangeSpaceOld<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::computeAvg(
+    T LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::computeAvg(
         const FieldLHS& u_h) const {
         if (this->quadrature_m.getOrder() < (2 * Order + 1)) {
             // throw exception
             throw IpplException(
-                "LagrangeSpaceOld::computeAvg()",
+                "LagrangeSpace::computeAvg()",
                 "Order of quadrature rule for error computation should be > 2*p + 1");
         }
 
