@@ -54,10 +54,10 @@ namespace ippl {
         static constexpr unsigned NEntitys = std::tuple_size_v<EntityTypes>; // Number of entity types with DOFs
 
         FEMContainer();
-        FEMContainer(Mesh_t& m, Layout_t& l, int nghost = 1);
+        FEMContainer(Mesh_t& m, const Layout_t& l, int nghost = 1);
         FEMContainer(const FEMContainer<T, Dim, EntityTypes, DOFNums>& other);
 
-        void initialize(Mesh_t& m, Layout_t& l, int nghost = 1);
+        void initialize(Mesh_t& m, const Layout_t& l, int nghost = 1);
 
 
         FEMContainer<T, Dim, EntityTypes, DOFNums>& operator=(T value);
@@ -75,8 +75,8 @@ namespace ippl {
 
         KOKKOS_INLINE_FUNCTION Mesh_t& get_mesh() const { return *mesh_m; }
 
-        KOKKOS_INLINE_FUNCTION Layout_t& getVertexLayout() const { return VertexLayout_m; }
-        KOKKOS_INLINE_FUNCTION Layout_t& getNumEntityLayout() const { return EntityLayout_m; }
+        KOKKOS_INLINE_FUNCTION const Layout_t& getVertexLayout() const { return *VertexLayout_m; }
+        KOKKOS_INLINE_FUNCTION const Layout_t& getNumEntityLayout() const { return *EntityLayout_m; }
 
         // Access individual layouts
         template <typename EntityType>
@@ -145,8 +145,8 @@ namespace ippl {
 
         Mesh_t* mesh_m; // Pointer to the mesh
 
-        Layout_t* VertexLayout_m; // Layout of vertices
-        Layout_t* EntityLayout_m; // Layout of highest order entities (Dim-dimensional elements)
+        const Layout_t* VertexLayout_m; // Layout of vertices
+        const Layout_t* EntityLayout_m; // Layout of highest order entities (Dim-dimensional elements)
     };
 }   // namespace ippl
 

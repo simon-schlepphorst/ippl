@@ -9,12 +9,12 @@ namespace ippl {
     FEMContainer<T, Dim, EntityTypes, DOFNums>::FEMContainer() {}
 
     template <typename T, unsigned Dim, typename EntityTypes, typename DOFNums>
-    FEMContainer<T, Dim, EntityTypes, DOFNums>::FEMContainer(Mesh_t& m, Layout_t& l, int nghost) {
+    FEMContainer<T, Dim, EntityTypes, DOFNums>::FEMContainer(Mesh_t& m, const Layout_t& l, int nghost) {
         initialize(m, l, nghost);
     }
 
     template <typename T, unsigned Dim, typename EntityTypes, typename DOFNums>
-    void FEMContainer<T, Dim, EntityTypes, DOFNums>::initialize(Mesh_t& m, Layout_t& l, int nghost) {
+    void FEMContainer<T, Dim, EntityTypes, DOFNums>::initialize(Mesh_t& m, const Layout_t& l, int nghost) {
 
         // Set mesh and ghostcells
         nghost_m = nghost;
