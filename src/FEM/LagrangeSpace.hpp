@@ -16,10 +16,7 @@ namespace ippl {
                       "Finite Element space only supports 1D, 2D and 3D meshes");
 
         // Initialize the elementIndices view
-        initializeElementIndices(layout);
-
-        // Initialize the resultField
-        resultField.initialize(mesh, layout);
+        elementIndices = dofHandler_m.getElementIndices();
     }
 
     // LagrangeSpace constructor, which calls the FiniteElementSpace constructor.
@@ -48,65 +45,7 @@ namespace ippl {
         dofHandler_m.initialize(mesh, layout);
 
         // Initialize the elementIndices view
-        initializeElementIndices(layout);
-
-        // Initialize the resultField
-        resultField.initialize(mesh, layout);
-    }
-
-    // Initialize element indices Kokkos View by distributing elements among MPI ranks.
-    template <typename T, unsigned Dim, unsigned Order, typename ElementType,
-              typename QuadratureType, typename FieldLHS, typename FieldRHS>
-    void LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
-                       FieldRHS>::initializeElementIndices(const Layout_t& layout) {
-        const auto& ldom = layout.getLocalNDIndex();
-        int npoints      = ldom.size();
-        auto first       = ldom.first();
-        auto last        = ldom.last();
-        ippl::Vector<double, Dim> bounds;
-
-        for (size_t d = 0; d < Dim; ++d) {
-            bounds[d] = this->nr_m[d] - 1;
-        }
-
-        int upperBoundaryPoints = -1;
-
-        // We iterate over the local domain points, getting the corresponding elements,
-        // while tagging upper boundary points such that they can be removed after.
-        Kokkos::View<size_t*> points("npoints", npoints);
-        Kokkos::parallel_reduce(
-            "ComputePoints", npoints,
-            KOKKOS_CLASS_LAMBDA(const int i, int& local) {
-                int idx = i;
-                indices_t val;
-                bool isBoundary = false;
-                for (unsigned int d = 0; d < Dim; ++d) {
-                    int range = last[d] - first[d] + 1;
-                    val[d]    = first[d] + (idx % range);
-                    idx /= range;
-                    if (val[d] == bounds[d]) {
-                        isBoundary = true;
-                    }
-                }
-                points(i) = (!isBoundary) * (this->getElementIndex(val));
-                local += isBoundary;
-            },
-            Kokkos::Sum<int>(upperBoundaryPoints));
-        Kokkos::fence();
-
-        // The elementIndices will be the same array as computed above,
-        // with the tagged upper boundary points removed.
-        int elementsPerRank = npoints - upperBoundaryPoints;
-        elementIndices      = Kokkos::View<size_t*>("i", elementsPerRank);
-        Kokkos::View<size_t> index("index");
-
-        Kokkos::parallel_for(
-            "RemoveNaNs", npoints, KOKKOS_CLASS_LAMBDA(const int i) {
-                if ((points(i) != 0) || (i == 0)) {
-                    const size_t idx    = Kokkos::atomic_fetch_add(&index(), 1);
-                    elementIndices(idx) = points(i);
-                }
-            });
+        elementIndices = dofHandler_m.getElementIndices();
     }
 
     ///////////////////////////////////////////////////////////////////////

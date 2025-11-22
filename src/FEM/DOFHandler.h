@@ -85,6 +85,31 @@ namespace ippl {
         KOKKOS_FUNCTION indices_t getElementNDIndex(const size_t& elementIndex) const;
 
         /**
+         * @brief Get the total number of elements in the mesh
+         *
+         * @return Total number of elements
+         */
+        KOKKOS_FUNCTION size_t getNumElements() const {
+            size_t numElements = 1;
+            for (unsigned d = 0; d < Dim; ++d) {
+                numElements *= ne_m[d];
+            }
+            return numElements;
+        }
+
+        /**
+         * @brief Get a view of local element indices for this MPI rank
+         *
+         * This creates a Kokkos view containing element indices for the local subdomain
+         * defined by the layout. In parallel MPI execution, each rank gets only its
+         * local subset of elements. Upper boundary elements are excluded to avoid
+         * double-counting between ranks.
+         *
+         * @return Kokkos::View containing element indices for local subdomain
+         */
+        Kokkos::View<size_t*> getElementIndices() const;
+
+        /**
          * @brief Get the starting local DOF index for a specific entity type
          *
          * Since DOFs are ordered by entity type (vertices, then edges, then faces, etc.),

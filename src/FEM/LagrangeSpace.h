@@ -108,12 +108,6 @@ namespace ippl {
         void initialize(UniformCartesian<T, Dim>& mesh, Layout_t& layout);
 
         ///////////////////////////////////////////////////////////////////////
-        /**
-         * @brief Initialize a Kokkos view containing the element indices.
-         * This distributes the elements among MPI ranks.
-         */
-        void initializeElementIndices(Layout_t& layout);
-
         /// Degree of Freedom operations //////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////
 

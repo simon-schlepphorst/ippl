@@ -307,6 +307,56 @@ namespace ippl {
         return FEMContainer_t(*mesh_m, *layout_m, nghost);
     }
 
+    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
+    Kokkos::View<size_t*> DOFHandler<T, SpaceTag, Dim, Order>::getElementIndices() const {
+        if (layout_m == nullptr) {
+            throw IpplException("DOFHandler::getElementIndices",
+                              "DOFHandler not initialized. Call initialize() first.");
+        }
+
+        // Create a sublayout for elements (one less than vertices in each dimension)
+        NDIndex<Dim> elementDomain = layout_m->getDomain();
+        for (unsigned d = 0; d < Dim; ++d) {
+            elementDomain[d] = elementDomain[d].cut(1);
+        }
+
+        SubFieldLayout<Dim> elementLayout(layout_m->comm, layout_m->getDomain(), elementDomain, layout_m->isParallel(), layout_m->isAllPeriodic_m);
+
+        
+        // Get the local subdomain from the layout
+        const auto& ldom = elementLayout.getLocalNDIndex();
+        
+        unsigned localElementCount = ldom.size();
+        
+        Kokkos::View<size_t*> localElementIndices("localElementIndices", localElementCount);
+
+        Kokkos::parallel_for(
+            "ComputeLocalElementsCount", localElementCount,
+            KOKKOS_CLASS_LAMBDA(const int i) {
+                int idx = i;
+                indices_t ndIndex;
+
+                // Convert linear index to NDIndex within local subdomain
+                for (unsigned int d = 0; d < Dim; ++d) {
+                    const int range = ldom[d].last() - ldom[d].first() + 1;
+                    ndIndex[d] = ldom[d].first() + (idx % range);
+                    idx /= range;
+                }
+
+                // Convert NDIndex to global element index
+                size_t elementIndex = 0;
+                size_t multiplier = 1;
+                for (unsigned int d = 0; d < Dim; ++d) {
+                    elementIndex += ndIndex[d] * multiplier;
+                    multiplier *= ne_m[d];
+                }
+
+                localElementIndices(i) = elementIndex;
+            });
+
+        return localElementIndices;
+    }
+
 }  // namespace ippl
 
 #endif  // IPPL_DOFHANDLER_HPP
