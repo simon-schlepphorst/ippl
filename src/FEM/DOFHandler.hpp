@@ -297,6 +297,16 @@ namespace ippl {
         return ndIndex;
     }
 
+    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
+    typename DOFHandler<T, SpaceTag, Dim, Order>::FEMContainer_t
+    DOFHandler<T, SpaceTag, Dim, Order>::createFEMContainer(int nghost) const {
+        if (mesh_m == nullptr || layout_m == nullptr) {
+            throw IpplException("DOFHandler::createFEMContainer",
+                              "DOFHandler not initialized. Call initialize() first.");
+        }
+        return FEMContainer_t(*mesh_m, *layout_m, nghost);
+    }
+
 }  // namespace ippl
 
 #endif  // IPPL_DOFHANDLER_HPP

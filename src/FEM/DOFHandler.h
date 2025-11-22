@@ -61,7 +61,7 @@ namespace ippl {
         
         DOFHandler();
         DOFHandler(Mesh_t& mesh, const Layout_t& layout);
-        
+
         void initialize(Mesh_t& mesh, const Layout_t& layout);
 
         ///////////////////////////////////////////////////////////////////////
@@ -112,6 +112,20 @@ namespace ippl {
             return SpaceTraits::template getEntityDOFEnd<EntityType>();
         }
 
+        ///////////////////////////////////////////////////////////////////////
+        // FEMContainer Creation /////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////
+
+        /**
+         * @brief Create a FEMContainer with the correct template parameters for this space
+         *
+         * Creates a FEMContainer that is compatible with this DOFHandler's space traits.
+         * The FEMContainer will be initialized with the mesh and layout from this DOFHandler.
+         *
+         * @param nghost Number of ghost layers (default: 1)
+         * @return FEMContainer_t A FEMContainer compatible with this space
+         */
+        FEMContainer_t createFEMContainer(int nghost = 1) const;
 
     private:
         ///////////////////////////////////////////////////////////////////////
