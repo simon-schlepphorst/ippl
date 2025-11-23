@@ -205,38 +205,63 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
+    KOKKOS_FUNCTION typename LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                                           FieldRHS>::point_t
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                  FieldRHS>::getRefElementDOFLocation(const size_t& localDOF) const {
+        // Assert that the local DOF index is valid
+        assert(localDOF < numElementDOFs && "The local DOF index is invalid");
+
+        // Use statically initialized DOF locations (computed once per template instantiation)
+        static const LagrangeDOFLocations<T, Dim, Order> dofLocations;
+        return dofLocations[localDOF];
+    }
+
+    // TODO make function branchless for performance
+    template <typename T, unsigned Dim, unsigned Order, typename ElementType,
+              typename QuadratureType, typename FieldLHS, typename FieldRHS>
     KOKKOS_FUNCTION T
     LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::
         evaluateRefElementShapeFunction(
             const size_t& localDOF,
             const LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
                                 FieldRHS>::point_t& localPoint) const {
-        static_assert(Order == 1, "Only order 1 is supported at the moment");
-        // Assert that the local vertex index is valid.
-        assert(localDOF < numElementDOFs
-               && "The local vertex index is invalid");  // TODO assumes 1st order Lagrange
+        // Assert that the local DOF index is valid.
+        assert(localDOF < numElementDOFs && "The local DOF index is invalid");
 
         assert(this->ref_element_m.isPointInRefElement(localPoint)
                && "Point is not in reference element");
 
-        // Get the local vertex indices for the local vertex index.
-        // TODO fix not order independent, only works for order 1
-        const point_t ref_element_point = this->ref_element_m.getLocalVertices()[localDOF];
+        // Get the DOF location on the reference element
+        const point_t ref_element_point = getRefElementDOFLocation(localDOF);
 
-        // The variable that accumulates the product of the shape functions.
+        // For Lagrange elements, the shape function is a tensor product of 1D Lagrange polynomials
         T product = 1;
 
         for (size_t d = 0; d < Dim; d++) {
-            if (localPoint[d] < ref_element_point[d]) {
-                product *= localPoint[d];
-            } else {
-                product *= 1.0 - localPoint[d];
+            // Compute 1D Lagrange basis polynomial in dimension d
+            T basis_1d = 1.0;
+
+            // Loop over all nodes in this dimension to construct Lagrange polynomial
+            for (unsigned k = 0; k <= Order; ++k) {
+                T node_k = static_cast<T>(k) / static_cast<T>(Order);
+
+                // Skip if this is the node corresponding to ref_element_point[d]
+                if (Kokkos::abs(ref_element_point[d] - node_k) < 1e-10) {
+                    continue;
+                }
+
+                // Lagrange basis: product of (x - x_k) / (x_i - x_k)
+                basis_1d *= (localPoint[d] - node_k) / (ref_element_point[d] - node_k);
             }
+
+            product *= basis_1d;
         }
 
         return product;
     }
 
+    // TODO make function branchless for performance
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     KOKKOS_FUNCTION typename LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
@@ -246,43 +271,68 @@ namespace ippl {
             const size_t& localDOF,
             const LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
                                 FieldRHS>::point_t& localPoint) const {
-        // TODO fix not order independent, only works for order 1
-        static_assert(Order == 1 && "Only order 1 is supported at the moment");
-
-        // Assert that the local vertex index is valid.
-        assert(localDOF < numElementDOFs && "The local vertex index is invalid");
+        // Assert that the local DOF index is valid.
+        assert(localDOF < numElementDOFs && "The local DOF index is invalid");
 
         assert(this->ref_element_m.isPointInRefElement(localPoint)
                && "Point is not in reference element");
 
-        // Get the local dof nd_index
-        const vertex_points_t local_vertex_points = this->ref_element_m.getLocalVertices();
+        // Get the DOF location on the reference element
+        const point_t ref_element_point = getRefElementDOFLocation(localDOF);
 
-        const point_t& local_vertex_point = local_vertex_points[localDOF];
+        point_t gradient;
 
-        point_t gradient(1);
-
-        // To construct the gradient we need to loop over the dimensions and multiply the
-        // shape functions in each dimension except the current one. The one of the current
-        // dimension is replaced by the derivative of the shape function in that dimension,
-        // which is either 1 or -1.
+        // For Lagrange elements, gradient is tensor product with one derivative
+        // grad_i(phi) = [phi_1, phi_2, ..., dphi_i/dx_i, ..., phi_Dim]
         for (size_t d = 0; d < Dim; d++) {
-            // The variable that accumulates the product of the shape functions.
             T product = 1;
 
             for (size_t d2 = 0; d2 < Dim; d2++) {
                 if (d2 == d) {
-                    if (localPoint[d] < local_vertex_point[d]) {
-                        product *= 1;
-                    } else {
-                        product *= -1;
+                    // Compute derivative of 1D Lagrange basis in this dimension
+                    T basis_deriv_1d = 0.0;
+
+                    // Loop over all nodes to construct derivative
+                    for (unsigned k = 0; k <= Order; ++k) {
+                        T node_k = static_cast<T>(k) / static_cast<T>(Order);
+
+                        // Skip if this is the node corresponding to ref_element_point[d]
+                        if (Kokkos::abs(ref_element_point[d] - node_k) < 1e-10) {
+                            continue;
+                        }
+
+                        // Compute derivative using product rule
+                        T term = 1.0 / (ref_element_point[d] - node_k);
+
+                        for (unsigned j = 0; j <= Order; ++j) {
+                            T node_j = static_cast<T>(j) / static_cast<T>(Order);
+
+                            if (Kokkos::abs(ref_element_point[d] - node_j) < 1e-10 || j == k) {
+                                continue;
+                            }
+
+                            term *= (localPoint[d] - node_j) / (ref_element_point[d] - node_j);
+                        }
+
+                        basis_deriv_1d += term;
                     }
+
+                    product *= basis_deriv_1d;
                 } else {
-                    if (localPoint[d2] < local_vertex_point[d2]) {
-                        product *= localPoint[d2];
-                    } else {
-                        product *= 1.0 - localPoint[d2];
+                    // Compute 1D Lagrange basis in other dimensions
+                    T basis_1d = 1.0;
+
+                    for (unsigned k = 0; k <= Order; ++k) {
+                        T node_k = static_cast<T>(k) / static_cast<T>(Order);
+
+                        if (Kokkos::abs(ref_element_point[d2] - node_k) < 1e-10) {
+                            continue;
+                        }
+
+                        basis_1d *= (localPoint[d2] - node_k) / (ref_element_point[d2] - node_k);
                     }
+
+                    product *= basis_1d;
                 }
             }
 
@@ -1729,33 +1779,56 @@ namespace ippl {
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
+    KOKKOS_FUNCTION typename LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                                           FieldRHS>::point_t
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
+                  FieldRHS>::DeviceStruct::getRefElementDOFLocation(const size_t& localDOF) const {
+        // Assert that the local DOF index is valid
+        assert(localDOF < DeviceStruct::numElementDOFs && "The local DOF index is invalid");
+
+        // Use statically initialized DOF locations (computed once per template instantiation)
+        static const LagrangeDOFLocations<T, Dim, Order> dofLocations;
+        return dofLocations[localDOF];
+    }
+
+    template <typename T, unsigned Dim, unsigned Order, typename ElementType,
+              typename QuadratureType, typename FieldLHS, typename FieldRHS>
     KOKKOS_FUNCTION T
     LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::DeviceStruct::
         evaluateRefElementShapeFunction(
             const size_t& localDOF,
             const LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS,
                                 FieldRHS>::point_t& localPoint) const {
-        static_assert(Order == 1, "Only order 1 is supported at the moment");
-        // Assert that the local vertex index is valid.
-        assert(localDOF < DeviceStruct::numElementDOFs
-               && "The local vertex index is invalid");  // TODO assumes 1st order Lagrange
+        // Assert that the local DOF index is valid.
+        assert(localDOF < DeviceStruct::numElementDOFs && "The local DOF index is invalid");
 
         assert(this->ref_element_m.isPointInRefElement(localPoint)
                && "Point is not in reference element");
 
-        // Get the local vertex indices for the local vertex index.
-        // TODO fix not order independent, only works for order 1
-        const point_t ref_element_point = this->ref_element_m.getLocalVertices()[localDOF];
+        // Get the DOF location on the reference element
+        const point_t ref_element_point = getRefElementDOFLocation(localDOF);
 
-        // The variable that accumulates the product of the shape functions.
+        // For Lagrange elements, the shape function is a tensor product of 1D Lagrange polynomials
         T product = 1;
 
         for (size_t d = 0; d < Dim; d++) {
-            if (localPoint[d] < ref_element_point[d]) {
-                product *= localPoint[d];
-            } else {
-                product *= 1.0 - localPoint[d];
+            // Compute 1D Lagrange basis polynomial in dimension d
+            T basis_1d = 1.0;
+
+            // Loop over all nodes in this dimension to construct Lagrange polynomial
+            for (unsigned k = 0; k <= Order; ++k) {
+                T node_k = static_cast<T>(k) / static_cast<T>(Order);
+
+                // Skip if this is the node corresponding to ref_element_point[d]
+                if (Kokkos::abs(ref_element_point[d] - node_k) < 1e-10) {
+                    continue;
+                }
+
+                // Lagrange basis: product of (x - x_k) / (x_i - x_k)
+                basis_1d *= (localPoint[d] - node_k) / (ref_element_point[d] - node_k);
             }
+
+            product *= basis_1d;
         }
 
         return product;

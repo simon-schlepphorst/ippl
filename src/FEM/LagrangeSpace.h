@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "FEM/DOFHandler.h"
+#include "FEM/DOFLocations.h"
 #include "FEM/FiniteElementSpace.h"
 
 namespace ippl {
@@ -27,11 +28,13 @@ namespace ippl {
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     // requires IsQuadrature<QuadratureType>
     class LagrangeSpace
-        : public FiniteElementSpace<T, Dim, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement, ElementType,
-                                    QuadratureType, FieldLHS, FieldRHS> {
+        : public FiniteElementSpace<
+              T, Dim, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement,
+              ElementType, QuadratureType, FieldLHS, FieldRHS> {
     public:
         // The number of degrees of freedom per element
-        static constexpr unsigned numElementDOFs = FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement;
+        static constexpr unsigned numElementDOFs =
+            FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement;
 
         // The dimension of the mesh
         static constexpr unsigned dim = FiniteElementSpace<T, Dim, numElementDOFs, ElementType,
@@ -72,6 +75,7 @@ namespace ippl {
         ///////////////////////////////////////////////////////////////////////
 
         /**
+        WORKS WITH DOFHANDLER
          * @brief Construct a new LagrangeSpace object
          *
          * @param mesh Reference to the mesh
@@ -83,6 +87,7 @@ namespace ippl {
                       const QuadratureType& quadrature, const Layout_t& layout);
 
         /**
+        WORKS WITH DOFHANDLER
          * @brief Construct a new LagrangeSpace object (without layout)
          * This constructor is made to work with the default constructor in
          * FEMPoissonSolver.h such that it is compatible with alpine.
@@ -95,6 +100,7 @@ namespace ippl {
                       const QuadratureType& quadrature);
 
         /**
+        WORKS WITH DOFHANDLER
          * @brief Initialize a LagrangeSpace object created with the default constructor
          *
          * @param mesh Reference to the mesh
@@ -107,6 +113,7 @@ namespace ippl {
         ///////////////////////////////////////////////////////////////////////
 
         /**
+        UNUSED IN THIS CLASS
          * @brief Get the number of global degrees of freedom in the space
          *
          * @return size_t - unsigned integer number of global degrees of freedom
@@ -114,6 +121,7 @@ namespace ippl {
         KOKKOS_FUNCTION size_t numGlobalDOFs() const override;
 
         /**
+        UNUSED IN THIS CLASS
          * @brief Get the elements local DOF from the element index and global DOF
          * index
          *
@@ -126,6 +134,7 @@ namespace ippl {
                                                 const size_t& globalDOFIndex) const override;
 
         /**
+        UNUSED IN THIS CLASS
          * @brief Get the global DOF index from the element index and local DOF
          *
          * @param elementIndex size_t - The index of the element
@@ -137,6 +146,7 @@ namespace ippl {
                                                  const size_t& localDOFIndex) const override;
 
         /**
+        UNUSED IN THIS CLASS
          * @brief Get the local DOF indices (vector of local DOF indices)
          * They are independent of the specific element because it only depends on
          * the reference element type
@@ -146,6 +156,8 @@ namespace ippl {
         KOKKOS_FUNCTION Vector<size_t, numElementDOFs> getLocalDOFIndices() const override;
 
         /**
+        TODO STILL USED, BUT ONLY UNTIL WE INTRODUCE DOFHANDLER IN evaluateAx, evaluateLoadVector,
+        computeErrorL2, computeAvg
          * @brief Get the global DOF indices (vector of global DOF indices) of an element
          *
          * @param elementIndex size_t - The index of the element
@@ -160,6 +172,18 @@ namespace ippl {
         ///////////////////////////////////////////////////////////////////////
 
         /**
+        WORKS WITH DOFHANDLER AND HIGHER ORDER
+         * @brief Get the reference element location for a given local DOF
+         * For Lagrange elements, DOFs are equally spaced on the reference element [0,1]^Dim
+         *
+         * @param localDOF size_t - The local degree of freedom index
+         *
+         * @return point_t (Vector<T, Dim>) - The location of the DOF in the reference element
+         */
+        KOKKOS_FUNCTION point_t getRefElementDOFLocation(const size_t& localDOF) const;
+
+        /**
+        WORKS WITH DOFHANDLER AND HIGHER ORDER
          * @brief Evaluate the shape function of a local degree of freedom at a given point in the
          * reference element
          *
@@ -172,6 +196,7 @@ namespace ippl {
                                                           const point_t& localPoint) const;
 
         /**
+        WORKS WITH DOFHANDLER AND HIGHER ORDER
          * @brief Evaluate the gradient of the shape function of a local degree of freedom at a
          * given point in the reference element
          *
@@ -287,6 +312,8 @@ namespace ippl {
                                                     const size_t& globalDOFIndex) const;
             KOKKOS_FUNCTION Vector<size_t, numElementDOFs> getGlobalDOFIndices(
                 const indices_t& elementNDIndex) const;
+
+            KOKKOS_FUNCTION point_t getRefElementDOFLocation(const size_t& localDOF) const;
 
             KOKKOS_FUNCTION T evaluateRefElementShapeFunction(const size_t& localDOF,
                                                               const point_t& localPoint) const;
