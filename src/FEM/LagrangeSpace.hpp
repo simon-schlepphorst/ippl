@@ -1,6 +1,12 @@
 
 namespace ippl {
 
+    // Static member definition: DOF locations on reference element
+    template <typename T, unsigned Dim, unsigned Order, typename ElementType,
+              typename QuadratureType, typename FieldLHS, typename FieldRHS>
+    const LagrangeDOFLocations<T, Dim, Order>
+    LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::dofLocations_m{};
+
     // LagrangeSpace constructor, which calls the FiniteElementSpace constructor,
     // and decomposes the elements among ranks according to layout.
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
@@ -212,9 +218,8 @@ namespace ippl {
         // Assert that the local DOF index is valid
         assert(localDOF < numElementDOFs && "The local DOF index is invalid");
 
-        // Use statically initialized DOF locations (computed once per template instantiation)
-        static const LagrangeDOFLocations<T, Dim, Order> dofLocations;
-        return dofLocations[localDOF];
+        // Use precomputed DOF locations
+        return dofLocations_m[localDOF];
     }
 
     // TODO make function branchless for performance
@@ -1786,9 +1791,8 @@ namespace ippl {
         // Assert that the local DOF index is valid
         assert(localDOF < DeviceStruct::numElementDOFs && "The local DOF index is invalid");
 
-        // Use statically initialized DOF locations (computed once per template instantiation)
-        static const LagrangeDOFLocations<T, Dim, Order> dofLocations;
-        return dofLocations[localDOF];
+        // Use precomputed DOF locations
+        return LagrangeSpace::dofLocations_m[localDOF];
     }
 
     template <typename T, unsigned Dim, unsigned Order, typename ElementType,
