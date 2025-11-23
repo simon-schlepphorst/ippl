@@ -17,30 +17,27 @@ namespace ippl {
 
     /**
      * @brief DOFHandler maps local element DOFs to entity types and local entity indices
-     * 
+     *
      * The DOFHandler's main job is to answer: "Given an element and a local DOF number,
      * which entity type does this DOF belong to, and what is the local index within that entity?"
-     * 
+     *
      * @tparam T The floating point type
-     * @tparam SpaceTag The finite element space type (LagrangeSpaceTag, NedelecSpaceTag, etc.)
-     * @tparam Dim The spatial dimension  
-     * @tparam Order The polynomial order
+     * @tparam SpaceTraits The finite element space traits (FiniteElementSpaceTraits<SpaceTag, Dim, Order>)
      */
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
+    template <typename T, typename SpaceTraits_>
     class DOFHandler {
     public:
         // Space traits
-        using SpaceTraits = FiniteElementSpaceTraits<SpaceTag, Dim, Order>;
+        using SpaceTraits = SpaceTraits_;
         using EntityTypes = typename SpaceTraits::EntityTypes;
         using DOFNums = typename SpaceTraits::DOFNums;
-        
+
         // Compatible FEMContainer type
+        static constexpr unsigned Dim = SpaceTraits::Dim;
         using FEMContainer_t = FEMContainer<T, Dim, EntityTypes, DOFNums>;
-        
-        static constexpr unsigned dim = Dim;
-        static constexpr unsigned order = Order;
+
         static constexpr unsigned dofsPerElement = SpaceTraits::dofsPerElement;
-        
+
         // Mesh types
         using Mesh_t = UniformCartesian<T, Dim>;
         using Layout_t = FieldLayout<Dim>;
@@ -191,10 +188,10 @@ namespace ippl {
     ///////////////////////////////////////////////////////////////////////
 
     template <typename T, unsigned Dim, unsigned Order>
-    using LagrangeDOFHandler = DOFHandler<T, LagrangeSpaceTag, Dim, Order>;
+    using LagrangeDOFHandler = DOFHandler<T, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>>;
 
     template <typename T, unsigned Dim, unsigned Order>
-    using NedelecDOFHandler = DOFHandler<T, NedelecSpaceTag, Dim, Order>;
+    using NedelecDOFHandler = DOFHandler<T, FiniteElementSpaceTraits<NedelecSpaceTag, Dim, Order>>;
 
 }  // namespace ippl
 

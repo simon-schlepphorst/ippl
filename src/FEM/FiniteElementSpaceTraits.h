@@ -83,11 +83,13 @@ namespace ippl {
     };
 
     // Helper base class with common functionality
-    template <typename EntityTypes_, typename DOFNums_, unsigned Dim_>
+    template <typename SpaceTag_, typename EntityTypes_, typename DOFNums_, unsigned Dim_, unsigned Order_>
     struct FiniteElementSpaceTraitsBase {
+        using SpaceTag = SpaceTag_;
         using EntityTypes = EntityTypes_;
         using DOFNums = DOFNums_;
-        static constexpr unsigned dim = Dim_;
+        static constexpr unsigned Dim = Dim_;
+        static constexpr unsigned Order = Order_;
 
         // Extract DOF count from the DOFNums tuple at compile time
         template <typename EntityType>
@@ -104,7 +106,7 @@ namespace ippl {
             } else {
                 using CurrentEntityType = std::tuple_element_t<CurrentIndex, EntityTypes>;
                 constexpr size_t currentDOFsPerEntity = std::tuple_element_t<CurrentIndex, DOFNums>::value;
-                constexpr size_t currentEntityCount = EntityCountPerElement<CurrentEntityType, dim>::value;
+                constexpr size_t currentEntityCount = EntityCountPerElement<CurrentEntityType, Dim>::value;
                 constexpr size_t currentTotal = currentEntityCount * currentDOFsPerEntity;
                 return currentTotal + getCumulativeDOFCount<TargetIndex, CurrentIndex + 1>();
             }
@@ -131,7 +133,7 @@ namespace ippl {
             } else {
                 constexpr size_t index = TagIndex<EntityTypes>::template index<EntityType>();
                 constexpr size_t dofCount = std::tuple_element_t<index, DOFNums>::value;
-                constexpr size_t entityCount = EntityCountPerElement<EntityType, dim>::value;
+                constexpr size_t entityCount = EntityCountPerElement<EntityType, Dim>::value;
                 return getEntityDOFStart<EntityType>() + (entityCount * dofCount);
             }
         }
@@ -149,20 +151,22 @@ namespace ippl {
     // Lagrange 1D Order 1 (special case - only vertices)
     template <>
     struct FiniteElementSpaceTraits<LagrangeSpaceTag, 1, 1>
-        : FiniteElementSpaceTraitsBase<std::tuple<Vertex<1>>,
+        : FiniteElementSpaceTraitsBase<LagrangeSpaceTag,
+                                        std::tuple<Vertex<1>>,
                                         std::tuple<std::integral_constant<unsigned, 1>>,
-                                        1> {
+                                        1, 1> {
         static constexpr unsigned dofsPerElement = 2 * 1;  // 2 vertices * 1 DOF each
     };
 
     // Lagrange 1D Order >= 2 (general case)
     template <unsigned Order>
     struct FiniteElementSpaceTraits<LagrangeSpaceTag, 1, Order>
-        : FiniteElementSpaceTraitsBase<std::tuple<Vertex<1>, EdgeX<1>>,
+        : FiniteElementSpaceTraitsBase<LagrangeSpaceTag,
+                                        std::tuple<Vertex<1>, EdgeX<1>>,
                                         std::tuple<std::integral_constant<unsigned, 1>,
                                                    std::integral_constant<unsigned, Order-1>>,
-                                        1> {
-        static_assert(Order >= 2, "Use Order 1 specialization for first-order elements");
+                                        1, Order> {
+        static_assert(Order >= 2, "Use Order 1 specialization for first-Order elements");
         // 2 vertices * 1 DOF + 1 edge * (Order-1) DOFs
         static constexpr unsigned dofsPerElement = 2 * 1 + 1 * (Order-1);
     };
@@ -170,22 +174,24 @@ namespace ippl {
     // Lagrange 2D Order 1 (special case - only vertices)
     template <>
     struct FiniteElementSpaceTraits<LagrangeSpaceTag, 2, 1>
-        : FiniteElementSpaceTraitsBase<std::tuple<Vertex<2>>,
+        : FiniteElementSpaceTraitsBase<LagrangeSpaceTag,
+                                        std::tuple<Vertex<2>>,
                                         std::tuple<std::integral_constant<unsigned, 1>>,
-                                        2> {
+                                        2, 1> {
         static constexpr unsigned dofsPerElement = 4 * 1;  // 4 vertices * 1 DOF each
     };
 
     // Lagrange 2D Order >= 2 (general case)
     template <unsigned Order>
     struct FiniteElementSpaceTraits<LagrangeSpaceTag, 2, Order>
-        : FiniteElementSpaceTraitsBase<std::tuple<Vertex<2>, EdgeX<2>, EdgeY<2>, FaceXY<2>>,
+        : FiniteElementSpaceTraitsBase<LagrangeSpaceTag,
+                                        std::tuple<Vertex<2>, EdgeX<2>, EdgeY<2>, FaceXY<2>>,
                                         std::tuple<std::integral_constant<unsigned, 1>,
                                                    std::integral_constant<unsigned, Order-1>,
                                                    std::integral_constant<unsigned, Order-1>,
                                                    std::integral_constant<unsigned, (Order-1)*(Order-1)>>,
-                                        2> {
-        static_assert(Order >= 2, "Use Order 1 specialization for first-order elements");
+                                        2, Order> {
+        static_assert(Order >= 2, "Use Order 1 specialization for first-Order elements");
         // 4 vertices * 1 DOF + 2 EdgesX * (Order-1) DOFs + 2 EdgesY * (Order-1) DOFs + 1 face * (Order-1)^2 DOFs
         static constexpr unsigned dofsPerElement = 4 * 1 + 2 * (Order-1) + 2 * (Order-1) + 1 * (Order-1) * (Order-1);
     };
@@ -193,16 +199,18 @@ namespace ippl {
     // Lagrange 3D Order 1 (special case - only vertices)
     template <>
     struct FiniteElementSpaceTraits<LagrangeSpaceTag, 3, 1>
-        : FiniteElementSpaceTraitsBase<std::tuple<Vertex<3>>,
+        : FiniteElementSpaceTraitsBase<LagrangeSpaceTag,
+                                        std::tuple<Vertex<3>>,
                                         std::tuple<std::integral_constant<unsigned, 1>>,
-                                        3> {
+                                        3, 1> {
         static constexpr unsigned dofsPerElement = 8 * 1;  // 8 vertices * 1 DOF each
     };
 
     // Lagrange 3D Order >= 2 (general case)
     template <unsigned Order>
     struct FiniteElementSpaceTraits<LagrangeSpaceTag, 3, Order>
-        : FiniteElementSpaceTraitsBase<std::tuple<Vertex<3>, EdgeX<3>, EdgeY<3>, EdgeZ<3>,
+        : FiniteElementSpaceTraitsBase<LagrangeSpaceTag,
+                                        std::tuple<Vertex<3>, EdgeX<3>, EdgeY<3>, EdgeZ<3>,
                                                   FaceXY<3>, FaceXZ<3>, FaceYZ<3>, Hexahedron<3>>,
                                         std::tuple<std::integral_constant<unsigned, 1>,
                                                    std::integral_constant<unsigned, Order-1>,
@@ -212,8 +220,8 @@ namespace ippl {
                                                    std::integral_constant<unsigned, (Order-1)*(Order-1)>,
                                                    std::integral_constant<unsigned, (Order-1)*(Order-1)>,
                                                    std::integral_constant<unsigned, (Order-1)*(Order-1)*(Order-1)>>,
-                                        3> {
-        static_assert(Order >= 2, "Use Order 1 specialization for first-order elements");
+                                        3, Order> {
+        static_assert(Order >= 2, "Use Order 1 specialization for first-Order elements");
         // 8 vertices * 1 DOF + 4 EdgesX * (Order-1) + 4 EdgesY * (Order-1) + 4 EdgesZ * (Order-1)
         // + 2 FacesXY * (Order-1)^2 + 2 FacesXZ * (Order-1)^2 + 2 FacesYZ * (Order-1)^2 + 1 volume * (Order-1)^3
         static constexpr unsigned dofsPerElement = 8 * 1 + 4 * (Order-1) + 4 * (Order-1) + 4 * (Order-1)

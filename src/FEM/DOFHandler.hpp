@@ -6,22 +6,22 @@
 
 namespace ippl {
 
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    DOFHandler<T, SpaceTag, Dim, Order>::DOFHandler() 
+    template <typename T, typename SpaceTraits_>
+    DOFHandler<T, SpaceTraits_>::DOFHandler()
         : mesh_m(nullptr), layout_m(nullptr) {
         // Default constructor
     }
 
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    DOFHandler<T, SpaceTag, Dim, Order>::DOFHandler(Mesh_t& mesh, const Layout_t& layout) : mesh_m(&mesh), layout_m(&layout) {
+    template <typename T, typename SpaceTraits_>
+    DOFHandler<T, SpaceTraits_>::DOFHandler(Mesh_t& mesh, const Layout_t& layout) : mesh_m(&mesh), layout_m(&layout) {
         initialize(mesh, layout);
     }
 
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    void DOFHandler<T, SpaceTag, Dim, Order>::initialize(Mesh_t& mesh, const Layout_t& layout) {
+    template <typename T, typename SpaceTraits_>
+    void DOFHandler<T, SpaceTraits_>::initialize(Mesh_t& mesh, const Layout_t& layout) {
         mesh_m = &mesh;
         layout_m = &layout;
-        
+
         // Get number of elements in each direction
         for (unsigned d = 0; d < Dim; ++d) {
             ne_m[d] = mesh.getGridsize()[d] - 1;
@@ -32,9 +32,9 @@ namespace ippl {
 
         // Create host mirror and fill the mapping table on host
         dofMappingTable_h = Kokkos::create_mirror_view(dofMappingTable_m);
-        if constexpr (std::is_same_v<SpaceTag, LagrangeSpaceTag>) {
+        if constexpr (std::is_same_v<typename SpaceTraits::SpaceTag, LagrangeSpaceTag>) {
             fillLagrangeDOFMappingTable(dofMappingTable_h);
-        } else if constexpr (std::is_same_v<SpaceTag, NedelecSpaceTag>) {
+        } else if constexpr (std::is_same_v<typename SpaceTraits::SpaceTag, NedelecSpaceTag>) {
             fillNedelecDOFMappingTable(dofMappingTable_h);
         }
 
@@ -42,8 +42,8 @@ namespace ippl {
         Kokkos::deep_copy(dofMappingTable_m, dofMappingTable_h);
     }
     
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    void DOFHandler<T, SpaceTag, Dim, Order>::fillLagrangeDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
+    template <typename T, typename SpaceTraits_>
+    void DOFHandler<T, SpaceTraits_>::fillLagrangeDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
         size_t dofIndex = 0;
 
         // For Lagrange elements, DOFs are ordered as:
@@ -264,14 +264,14 @@ namespace ippl {
         }
     }
         
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    void DOFHandler<T, SpaceTag, Dim, Order>::fillNedelecDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
+    template <typename T, typename SpaceTraits_>
+    void DOFHandler<T, SpaceTraits_>::fillNedelecDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
         // TODO implement Nedelec DOF mapping table filling
     }
 
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    KOKKOS_INLINE_FUNCTION typename DOFHandler<T, SpaceTag, Dim, Order>::DOFMapping
-    DOFHandler<T, SpaceTag, Dim, Order>::getElementDOFMapping(const size_t& localElementDOF) const {
+    template <typename T, typename SpaceTraits_>
+    KOKKOS_INLINE_FUNCTION typename DOFHandler<T, SpaceTraits_>::DOFMapping
+    DOFHandler<T, SpaceTraits_>::getElementDOFMapping(const size_t& localElementDOF) const {
         // Use Kokkos macros to select host mirror on host, device view on device
         DOFMapping result;
         KOKKOS_IF_ON_DEVICE((result = dofMappingTable_m(localElementDOF);))
@@ -279,9 +279,9 @@ namespace ippl {
         return result;
     }
 
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    KOKKOS_FUNCTION typename DOFHandler<T, SpaceTag, Dim, Order>::indices_t
-    DOFHandler<T, SpaceTag, Dim, Order>::getElementNDIndex(const size_t& elementIndex) const {
+    template <typename T, typename SpaceTraits_>
+    KOKKOS_FUNCTION typename DOFHandler<T, SpaceTraits_>::indices_t
+    DOFHandler<T, SpaceTraits_>::getElementNDIndex(const size_t& elementIndex) const {
         // Convert linear element index to NDIndex using row-major ordering
         size_t index = elementIndex;
         indices_t ndIndex;
@@ -300,9 +300,9 @@ namespace ippl {
         return ndIndex;
     }
 
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    typename DOFHandler<T, SpaceTag, Dim, Order>::FEMContainer_t
-    DOFHandler<T, SpaceTag, Dim, Order>::createFEMContainer(int nghost) const {
+    template <typename T, typename SpaceTraits_>
+    typename DOFHandler<T, SpaceTraits_>::FEMContainer_t
+    DOFHandler<T, SpaceTraits_>::createFEMContainer(int nghost) const {
         if (mesh_m == nullptr || layout_m == nullptr) {
             throw IpplException("DOFHandler::createFEMContainer",
                               "DOFHandler not initialized. Call initialize() first.");
@@ -310,8 +310,8 @@ namespace ippl {
         return FEMContainer_t(*mesh_m, *layout_m, nghost);
     }
 
-    template <typename T, typename SpaceTag, unsigned Dim, unsigned Order>
-    Kokkos::View<size_t*> DOFHandler<T, SpaceTag, Dim, Order>::getElementIndices() const {
+    template <typename T, typename SpaceTraits_>
+    Kokkos::View<size_t*> DOFHandler<T, SpaceTraits_>::getElementIndices() const {
         if (layout_m == nullptr) {
             throw IpplException("DOFHandler::getElementIndices",
                               "DOFHandler not initialized. Call initialize() first.");
@@ -325,12 +325,12 @@ namespace ippl {
 
         SubFieldLayout<Dim> elementLayout(layout_m->comm, layout_m->getDomain(), elementDomain, layout_m->isParallel(), layout_m->isAllPeriodic_m);
 
-        
+
         // Get the local subdomain from the layout
         const auto& ldom = elementLayout.getLocalNDIndex();
-        
+
         unsigned localElementCount = ldom.size();
-        
+
         Kokkos::View<size_t*> localElementIndices("localElementIndices", localElementCount);
 
         Kokkos::parallel_for(

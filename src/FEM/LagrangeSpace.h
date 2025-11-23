@@ -10,11 +10,6 @@
 #include "FEM/DOFHandler.h"
 #include "FEM/FiniteElementSpace.h"
 
-constexpr unsigned getLagrangeNumElementDOFs(unsigned Dim, unsigned Order) {
-    // needs to be constexpr pow function to work at compile time. Kokkos::pow doesn't work.
-    return static_cast<unsigned>(power(static_cast<int>(Order + 1), static_cast<int>(Dim)));
-}
-
 namespace ippl {
 
     /**
@@ -32,11 +27,11 @@ namespace ippl {
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     // requires IsQuadrature<QuadratureType>
     class LagrangeSpace
-        : public FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
+        : public FiniteElementSpace<T, Dim, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement, ElementType,
                                     QuadratureType, FieldLHS, FieldRHS> {
     public:
         // The number of degrees of freedom per element
-        static constexpr unsigned numElementDOFs = getLagrangeNumElementDOFs(Dim, Order);
+        static constexpr unsigned numElementDOFs = FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement;
 
         // The dimension of the mesh
         static constexpr unsigned dim = FiniteElementSpace<T, Dim, numElementDOFs, ElementType,
@@ -70,7 +65,7 @@ namespace ippl {
             AtomicViewType;
 
         // DOFHandler type for this space
-        typedef DOFHandler<T, LagrangeSpaceTag, Dim, Order> DOFHandler_t;
+        typedef DOFHandler<T, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>> DOFHandler_t;
 
         ///////////////////////////////////////////////////////////////////////
         // Constructors ///////////////////////////////////////////////////////

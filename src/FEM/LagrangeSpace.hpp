@@ -8,8 +8,10 @@ namespace ippl {
     LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::LagrangeSpace(
         UniformCartesian<T, Dim>& mesh, ElementType& ref_element, const QuadratureType& quadrature,
         const Layout_t& layout)
-        : FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
-                             QuadratureType, FieldLHS, FieldRHS>(mesh, ref_element, quadrature)
+        : FiniteElementSpace<T, Dim,
+                             FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement,
+                             ElementType, QuadratureType, FieldLHS, FieldRHS>(mesh, ref_element,
+                                                                              quadrature)
         , dofHandler_m(mesh, layout) {
         // Assert that the dimension is either 1, 2 or 3.
         static_assert(Dim >= 1 && Dim <= 3,
@@ -24,8 +26,10 @@ namespace ippl {
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::LagrangeSpace(
         UniformCartesian<T, Dim>& mesh, ElementType& ref_element, const QuadratureType& quadrature)
-        : FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
-                             QuadratureType, FieldLHS, FieldRHS>(mesh, ref_element, quadrature) {
+        : FiniteElementSpace<T, Dim,
+                             FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement,
+                             ElementType, QuadratureType, FieldLHS, FieldRHS>(mesh, ref_element,
+                                                                              quadrature) {
         // Assert that the dimension is either 1, 2 or 3.
         static_assert(Dim >= 1 && Dim <= 3,
                       "Finite Element space only supports 1D, 2D and 3D meshes");
@@ -38,8 +42,9 @@ namespace ippl {
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     void LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>::initialize(
         UniformCartesian<T, Dim>& mesh, const Layout_t& layout) {
-        FiniteElementSpace<T, Dim, getLagrangeNumElementDOFs(Dim, Order), ElementType,
-                           QuadratureType, FieldLHS, FieldRHS>::setMesh(mesh);
+        FiniteElementSpace<T, Dim,
+                           FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement,
+                           ElementType, QuadratureType, FieldLHS, FieldRHS>::setMesh(mesh);
 
         // Initialize the DOFHandler
         dofHandler_m.initialize(mesh, layout);
