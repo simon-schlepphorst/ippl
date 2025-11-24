@@ -37,6 +37,7 @@ namespace ippl {
         using FEMContainer_t = FEMContainer<T, Dim, EntityTypes, DOFNums>;
 
         static constexpr unsigned dofsPerElement = SpaceTraits::dofsPerElement;
+        static constexpr unsigned numEntityTypes = std::tuple_size_v<EntityTypes>;
 
         // Mesh types
         using Mesh_t = UniformCartesian<T, Dim>;
