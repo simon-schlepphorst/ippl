@@ -238,7 +238,7 @@ TYPED_TEST(HaloTest, AccumulateHalo) {
     auto& femVertex = this->femContainerVertexOnly;
 
     *femVertex = 1;
-    const unsigned int nghost = femVertex->getNGhost();
+    const unsigned int nghost = femVertex->getNghost();
 
     std::apply([&](auto... entity_types) {
         ((void)[&]<typename EntityType>(EntityType) {

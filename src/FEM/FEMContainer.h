@@ -69,7 +69,7 @@ namespace ippl {
         void fillHalo();
         void accumulateHalo();
 
-        int getNGhost() const { return nghost_m; }
+        int getNghost() const { return nghost_m; }
 
         unsigned int getNumFields() { return NEntitys; }
 
