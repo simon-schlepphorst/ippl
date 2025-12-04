@@ -32,6 +32,12 @@ namespace ippl {
               T, Dim, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement,
               ElementType, QuadratureType, FieldLHS, FieldRHS> {
     public:
+        // DOFHandler type for this space
+        typedef DOFHandler<T, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>> DOFHandler_t;
+
+        // FEMContainer type compatible with this space
+        typedef typename DOFHandler_t::FEMContainer_t FEMContainer_t;
+        
         // The number of degrees of freedom per element
         static constexpr unsigned numElementDOFs =
             FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement;
@@ -39,7 +45,7 @@ namespace ippl {
         // The dimension of the mesh
         static constexpr unsigned dim = FiniteElementSpace<T, Dim, numElementDOFs, ElementType,
                                                            QuadratureType, FieldLHS, FieldRHS>::dim;
-
+        
         // The order of the Lagrange space
         static constexpr unsigned order = Order;
 
@@ -67,8 +73,6 @@ namespace ippl {
         typedef typename detail::ViewType<T, Dim, Kokkos::MemoryTraits<Kokkos::Atomic>>::view_type
             AtomicViewType;
 
-        // DOFHandler type for this space
-        typedef DOFHandler<T, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>> DOFHandler_t;
 
         ///////////////////////////////////////////////////////////////////////
         // Constructors ///////////////////////////////////////////////////////
@@ -352,8 +356,12 @@ namespace ippl {
         /// DOFHandler for this space /////////////////////////////////////////
         DOFHandler_t dofHandler_m;
 
+        // Typename for DOF mapping, used to get in which entity, at which
+        // NDIndex and at which position in the DOF Array a local DOF is located
+        using DOFMapping_t = typename DOFHandler_t::DOFMapping;
+
         /// Precomputed DOF locations on reference element ////////////////////
-        static const LagrangeDOFLocations<T, Dim, Order> dofLocations_m;
+        LagrangeDOFLocations<T, Dim, Order> dofLocations_m;
     };
 
 }  // namespace ippl

@@ -8,24 +8,34 @@ namespace ippl {
 
     template <typename T, typename SpaceTraits_>
     DOFHandler<T, SpaceTraits_>::DOFHandler()
-        : mesh_m(nullptr), layout_m(nullptr) {
+        : mesh_m(nullptr) {
         // Default constructor
     }
 
     template <typename T, typename SpaceTraits_>
-    DOFHandler<T, SpaceTraits_>::DOFHandler(Mesh_t& mesh, const Layout_t& layout) : mesh_m(&mesh), layout_m(&layout) {
+    DOFHandler<T, SpaceTraits_>::DOFHandler(Mesh_t& mesh, const Layout_t& layout) : mesh_m(&mesh) {
         initialize(mesh, layout);
     }
 
     template <typename T, typename SpaceTraits_>
     void DOFHandler<T, SpaceTraits_>::initialize(Mesh_t& mesh, const Layout_t& layout) {
         mesh_m = &mesh;
-        layout_m = &layout;
 
         // Get number of elements in each direction
         for (unsigned d = 0; d < Dim; ++d) {
             ne_m[d] = mesh.getGridsize()[d] - 1;
         }
+
+        // Create element layout (one less than vertices in each dimension)
+        NDIndex<Dim> elementDomain = layout.getDomain();
+        for (unsigned d = 0; d < Dim; ++d) {
+            elementDomain[d] = elementDomain[d].cut(1);
+        }
+        auto elementLayout = SubFieldLayout<Dim>(layout.comm, layout.getDomain(),
+                                               elementDomain, layout.isParallel(),
+                                               layout.isAllPeriodic_m);
+
+        lElemDom_m = elementLayout.getLocalNDIndex();
 
         // Allocate device view for DOF mapping table
         dofMappingTable_m = Kokkos::View<DOFMapping*>("DOFMappingTable", dofsPerElement);
@@ -94,7 +104,7 @@ namespace ippl {
             constexpr size_t vertexDOFCount = SpaceTraits::template entityDOFCount<Vertex<Dim>>();
 
             for (size_t v = 0; v < verticesPerElement; ++v) {
-                Kokkos::Array<size_t, Dim> offset;
+                indices_t offset;
                 if constexpr (Dim == 1) {
                     offset[0] = v; // Simple: 0 or 1
                 } else if constexpr (Dim == 2) {
@@ -121,7 +131,7 @@ namespace ippl {
             constexpr size_t numEdgesX = (Dim == 1) ? 1 : ((Dim == 2) ? 2 : 4);
 
             for (size_t e = 0; e < numEdgesX; ++e) {
-                Kokkos::Array<size_t, Dim> offset;
+                indices_t offset;
                 if constexpr (Dim == 1) {
                     offset[0] = 0;  // In 1D, edge is the element itself at position 0
                 } else if constexpr (Dim == 1) {
@@ -149,7 +159,7 @@ namespace ippl {
                 constexpr size_t numEdgesY = (Dim == 2) ? 2 : 4;
 
                 for (size_t e = 0; e < numEdgesY; ++e) {
-                    Kokkos::Array<size_t, Dim> offset;
+                    indices_t offset;
                     if constexpr (Dim == 2) {
                         offset[0] = edge2DYOffsets[e][0];
                         offset[1] = edge2DYOffsets[e][1];
@@ -173,7 +183,7 @@ namespace ippl {
                 constexpr size_t edgeZDOFCount = SpaceTraits::template entityDOFCount<EdgeZ<Dim>>();
 
                 for (size_t e = 0; e < 4; ++e) {
-                    Kokkos::Array<size_t, Dim> offset;
+                    indices_t offset;
                     offset[0] = edge3DZOffsets[e][0];
                     offset[1] = edge3DZOffsets[e][1];
                     offset[2] = edge3DZOffsets[e][2];
@@ -194,7 +204,7 @@ namespace ippl {
                 constexpr size_t numFacesXY = (Dim == 2) ? 1 : 2;
 
                 for (size_t f = 0; f < numFacesXY; ++f) {
-                    Kokkos::Array<size_t, Dim> offset;
+                    indices_t offset;
                     offset[0] = 0;
                     offset[1] = 0;
                     if constexpr (Dim == 3) {
@@ -214,7 +224,7 @@ namespace ippl {
                     constexpr size_t faceXZDOFCount = SpaceTraits::template entityDOFCount<FaceXZ<Dim>>();
 
                     for (size_t f = 0; f < 2; ++f) {
-                        Kokkos::Array<size_t, Dim> offset;
+                        indices_t offset;
                         offset[0] = 0;
                         offset[1] = f; // FaceXZ 0:[0,0,0], FaceXZ 1:[0,1,0]
                         offset[2] = 0;
@@ -233,7 +243,7 @@ namespace ippl {
                     constexpr size_t faceYZDOFCount = SpaceTraits::template entityDOFCount<FaceYZ<Dim>>();
 
                     for (size_t f = 0; f < 2; ++f) {
-                        Kokkos::Array<size_t, Dim> offset;
+                        indices_t offset;
                         offset[0] = f; // FaceYZ 0:[0,0,0], FaceYZ 1:[1,0,0]
                         offset[1] = 0;
                         offset[2] = 0;
@@ -252,7 +262,7 @@ namespace ippl {
                 constexpr size_t hexTypeIndex = TagIndex<EntityTypes>::template index<Hexahedron<Dim>>();
                 constexpr size_t hexDOFCount = SpaceTraits::template entityDOFCount<Hexahedron<Dim>>();
 
-                Kokkos::Array<size_t, Dim> offset;
+                indices_t offset;
                 offset[0] = 0;
                 offset[1] = 0;
                 offset[2] = 0;
@@ -301,35 +311,75 @@ namespace ippl {
     }
 
     template <typename T, typename SpaceTraits_>
-    typename DOFHandler<T, SpaceTraits_>::FEMContainer_t
-    DOFHandler<T, SpaceTraits_>::createFEMContainer(int nghost) const {
-        if (mesh_m == nullptr || layout_m == nullptr) {
-            throw IpplException("DOFHandler::createFEMContainer",
-                              "DOFHandler not initialized. Call initialize() first.");
+    KOKKOS_FUNCTION typename DOFHandler<T, SpaceTraits_>::indices_t
+    DOFHandler<T, SpaceTraits_>::getLocalElementNDIndex(const size_t& elementIndex, int nghost) const {
+        // Convert linear element index to global NDIndex using row-major ordering
+        indices_t ndIndex = getElementNDIndex(elementIndex);
+
+        // Convert to local coordinates by subtracting the local domain offset
+        for (unsigned d = 0; d < Dim; ++d) {
+            ndIndex[d] = ndIndex[d] - lElemDom_m[d].first() + nghost;
         }
-        return FEMContainer_t(*mesh_m, *layout_m, nghost);
+
+        return ndIndex;
+    }
+
+    template <typename T, typename SpaceTraits_>
+    KOKKOS_FUNCTION bool
+    DOFHandler<T, SpaceTraits_>::isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF,
+                                                   const unsigned& dim) const {
+        // Get the DOF mapping to find which entity this DOF belongs to
+        DOFMapping dofMap = getElementDOFMapping(localDOF);
+
+        // Check if this entity type can touch boundaries perpendicular to dimension 'dim'
+        // An entity can only touch such boundaries if it does NOT extend in dimension 'dim'
+        // We need to get entityDir[dim] for the entity type at entityTypeIndex
+        bool entityExtendsInDim = false;
+
+        // Unroll at compile time over all entity types
+        [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+            ((dofMap.entityTypeIndex == Is ?
+                (entityExtendsInDim = std::tuple_element_t<Is, EntityTypes>{}.getDir()[dim], true) : false), ...);
+        }(std::make_index_sequence<numEntityTypes>{});
+
+        // If entity extends in this dimension, it cannot be on a boundary perpendicular to it
+        if (entityExtendsInDim) {
+            return false;
+        }
+
+        // Get the element's global NDIndex
+        indices_t elementNDIndex = getElementNDIndex(elementIndex);
+
+        // Calculate the entity's position in the specified dimension
+        size_t entityCoord = elementNDIndex[dim] + dofMap.entityLocalIndex[dim];
+
+        // Check if the entity is on the boundary in this dimension
+        // An entity is on the boundary if its coordinate equals 0 (lower boundary)
+        // or ne_m[dim] (upper boundary)
+        return (entityCoord == 0 || entityCoord == ne_m[dim]);
+    }
+
+    template <typename T, typename SpaceTraits_>
+    KOKKOS_FUNCTION bool
+    DOFHandler<T, SpaceTraits_>::isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF) const {
+        bool isOnBoundary = false;
+
+        // Check all dimensions using bitwise OR to avoid branching
+        for (unsigned d = 0; d < Dim; ++d) {
+            isOnBoundary |= isDOFOnBoundary(elementIndex, localDOF, d);
+        }
+
+        return isOnBoundary;
     }
 
     template <typename T, typename SpaceTraits_>
     Kokkos::View<size_t*> DOFHandler<T, SpaceTraits_>::getElementIndices() const {
-        if (layout_m == nullptr) {
+        if (mesh_m == nullptr) {
             throw IpplException("DOFHandler::getElementIndices",
                               "DOFHandler not initialized. Call initialize() first.");
         }
 
-        // Create a sublayout for elements (one less than vertices in each dimension)
-        NDIndex<Dim> elementDomain = layout_m->getDomain();
-        for (unsigned d = 0; d < Dim; ++d) {
-            elementDomain[d] = elementDomain[d].cut(1);
-        }
-
-        SubFieldLayout<Dim> elementLayout(layout_m->comm, layout_m->getDomain(), elementDomain, layout_m->isParallel(), layout_m->isAllPeriodic_m);
-
-
-        // Get the local subdomain from the layout
-        const auto& ldom = elementLayout.getLocalNDIndex();
-
-        unsigned localElementCount = ldom.size();
+        unsigned localElementCount = lElemDom_m.size();
 
         Kokkos::View<size_t*> localElementIndices("localElementIndices", localElementCount);
 
@@ -341,8 +391,8 @@ namespace ippl {
 
                 // Convert linear index to NDIndex within local subdomain
                 for (unsigned int d = 0; d < Dim; ++d) {
-                    const int range = ldom[d].last() - ldom[d].first() + 1;
-                    ndIndex[d] = ldom[d].first() + (idx % range);
+                    const int range = lElemDom_m[d].last() - lElemDom_m[d].first() + 1;
+                    ndIndex[d] = lElemDom_m[d].first() + (idx % range);
                     idx /= range;
                 }
 
@@ -356,6 +406,9 @@ namespace ippl {
 
                 localElementIndices(i) = elementIndex;
             });
+
+        // Fence to ensure the view is populated before returning
+        Kokkos::fence();
 
         return localElementIndices;
     }

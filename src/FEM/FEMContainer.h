@@ -46,6 +46,8 @@ namespace ippl {
         
         using Mesh_t      = UniformCartesian<T, Dim>;
         using Layout_t    = FieldLayout<Dim>;
+        using Centering_t = Cell; // This is only a placeholder since the template does nothing with it at the moment
+                                  // Actual centering is defined by the EntityTypes and done using the SubFieldLayout class
         
         // Build tuple of field types
         using FieldTuple = typename FieldTupleBuilder<T, Dim, Mesh_t, EntityTypes, DOFNums>::type;
@@ -59,15 +61,82 @@ namespace ippl {
 
         void initialize(Mesh_t& m, const Layout_t& l, int nghost = 1);
 
+        FEMContainer<T, Dim, EntityTypes, DOFNums> deepCopy() const;
+
 
         FEMContainer<T, Dim, EntityTypes, DOFNums>& operator=(T value);
         FEMContainer<T, Dim, EntityTypes, DOFNums>& operator=(const FEMContainer<T,Dim, EntityTypes, DOFNums>& other);
 
-        FEMContainer<T, Dim, EntityTypes, DOFNums>& operator+=(const FEMContainer<T, Dim, EntityTypes, DOFNums>& other);
         FEMContainer<T, Dim, EntityTypes, DOFNums>& operator+=(T value);
+        FEMContainer<T, Dim, EntityTypes, DOFNums>& operator+=(const FEMContainer<T, Dim, EntityTypes, DOFNums>& other);
+
+        FEMContainer<T, Dim, EntityTypes, DOFNums>& operator-=(T value);
+        FEMContainer<T, Dim, EntityTypes, DOFNums>& operator-=(const FEMContainer<T, Dim, EntityTypes, DOFNums>& other);
+
+        FEMContainer<T, Dim, EntityTypes, DOFNums> operator+(const FEMContainer<T, Dim, EntityTypes, DOFNums>& other) const;
+        FEMContainer<T, Dim, EntityTypes, DOFNums> operator-(const FEMContainer<T, Dim, EntityTypes, DOFNums>& other) const;
+
+        FEMContainer<T, Dim, EntityTypes, DOFNums> operator+(T scalar) const;
+        FEMContainer<T, Dim, EntityTypes, DOFNums> operator-(T scalar) const;
+        FEMContainer<T, Dim, EntityTypes, DOFNums> operator*(T scalar) const;
+        FEMContainer<T, Dim, EntityTypes, DOFNums> operator/(T scalar) const;
+
+        // Friend function for scalar * FEMContainer
+        friend FEMContainer<T, Dim, EntityTypes, DOFNums> operator*(T scalar, const FEMContainer<T, Dim, EntityTypes, DOFNums>& container) {
+            return container * scalar;
+        }
+
+        // Friend function for norm (callable as ippl::norm via ADL)
+        friend T norm(const FEMContainer<T, Dim, EntityTypes, DOFNums>& container, int p = 2) {
+            return container.norm(p);
+        }
+
+        // Friend function for inner product (callable as ippl::innerProduct via ADL)
+        friend T innerProduct(const FEMContainer<T, Dim, EntityTypes, DOFNums>& a,
+                             const FEMContainer<T, Dim, EntityTypes, DOFNums>& b) {
+            T localSum = 0.0;
+
+            // Compute inner product over all fields in the tuple
+            [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+                (([&]() {
+                    const auto& field_a = std::get<Is>(a.data_m);
+                    const auto& field_b = std::get<Is>(b.data_m);
+                    auto view_a = field_a.getView();
+                    auto view_b = field_b.getView();
+
+                    // Compute local inner product by iterating over view
+                    T fieldLocalSum = 0.0;
+                    constexpr unsigned numDOFs = numDOFs_m[Is];
+                    size_t n = view_a.extent(0);
+
+                    Kokkos::parallel_reduce("FEMContainer innerProduct field", n,
+                        KOKKOS_LAMBDA(const size_t i, T& val) {
+                            // Compute dot product of DOFArrays at position i
+                            for (unsigned dof = 0; dof < numDOFs; ++dof) {
+                                val += view_a(i)[dof] * view_b(i)[dof];
+                            }
+                        },
+                        Kokkos::Sum<T>(fieldLocalSum)
+                    );
+
+                    localSum += fieldLocalSum;
+                }()), ...);
+            }(std::make_index_sequence<NEntitys>{});
+
+            // Global sum across MPI ranks
+            T globalSum = 0.0;
+            ippl::Comm->allreduce(localSum, globalSum, 1, std::plus<T>());
+            return globalSum;
+        }
+
+        // TODO implement inf norm
+        T norm(int p = 2) const;
+
+        T getVolumeAverage() const;
 
         void fillHalo();
         void accumulateHalo();
+        void accumulateHalo_noghost(int nghost = 1);
 
         int getNghost() const { return nghost_m; }
 
@@ -75,8 +144,7 @@ namespace ippl {
 
         KOKKOS_INLINE_FUNCTION Mesh_t& get_mesh() const { return *mesh_m; }
 
-        KOKKOS_INLINE_FUNCTION const Layout_t& getVertexLayout() const { return *VertexLayout_m; }
-        KOKKOS_INLINE_FUNCTION const Layout_t& getNumEntityLayout() const { return *EntityLayout_m; }
+        KOKKOS_INLINE_FUNCTION const Layout_t& getLayout() const { return *VertexLayout_m; }
 
         // Access individual layouts
         template <typename EntityType>
@@ -125,6 +193,55 @@ namespace ippl {
             return EntityTypes{};
         }
 
+        /**
+         * @brief Set boundary conditions for all entity type fields
+         *
+         * Takes an array specifying which BC type to apply on each boundary face
+         * and applies corresponding boundary conditions to each field in the container.
+         *
+         * @param bcTypes Array of boundary condition types for each face (0 to 2*Dim-1)
+         */
+        void setFieldBC(const std::array<FieldBC, 2*Dim>& bcTypes);
+
+        /**
+         * @brief Set boundary conditions from a BConds object
+         *
+         * Extracts BC types and constant values from a BConds object and applies them
+         * to all fields in the FEMContainer. This is useful for setting CONSTANT_FACE BCs
+         * with specific values.
+         *
+         * @tparam Field Any field type with compatible BConds
+         * @param bconds BConds object containing boundary conditions with values
+         */
+        template <typename Field>
+        void setFieldBC(const BConds<Field, Dim>& bconds);
+
+        /**
+         * @brief Get the boundary condition types for all faces
+         *
+         * Returns a reference to the array of boundary condition types for each face.
+         *
+         * @return Const reference to array of boundary condition types
+         */
+        const std::array<FieldBC, 2*Dim>& getFieldBC() const { return bcTypes_m; }
+
+        /**
+         * @brief Apply boundary conditions to all fields
+         *
+         * Calls apply() on the boundary conditions for each field in the container.
+         * This enforces the boundary conditions on the field values.
+         */
+        void applyBC();
+
+        /**
+         * @brief Assign ghost to physical cells for all fields
+         *
+         * Calls assignGhostToPhysical() on the boundary conditions for each field
+         * in the container. This is used for periodic boundary conditions to copy
+         * values from ghost cells back to physical cells.
+         */
+        void assignGhostToPhysical();
+
     private:
 
 
@@ -146,7 +263,9 @@ namespace ippl {
         Mesh_t* mesh_m; // Pointer to the mesh
 
         const Layout_t* VertexLayout_m; // Layout of vertices
-        const Layout_t* EntityLayout_m; // Layout of highest order entities (Dim-dimensional elements)
+
+        std::array<FieldBC, 2*Dim> bcTypes_m; // Boundary condition types for each face
+        std::array<T, 2*Dim> bcValues_m{};      // Constant values for CONSTANT_FACE boundary conditions
     };
 }   // namespace ippl
 

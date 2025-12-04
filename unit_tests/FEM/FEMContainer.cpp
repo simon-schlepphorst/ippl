@@ -24,8 +24,37 @@ public:
     using mesh_type      = ippl::UniformCartesian<T, Dim>;
     using centering_type = typename mesh_type::DefaultCentering;
     using layout_type    = ippl::FieldLayout<Dim>;
-    using femcontainer_vertex_only_type = std::conditional_t<Dim == 1, ippl::FEMContainer<T, Dim, 1, 0>, std::conditional_t<Dim == 2, ippl::FEMContainer<T, Dim, 1, 0, 0>, ippl::FEMContainer<T, Dim, 1, 0, 0, 0>>>; // Vertex-only DOFs
-    using femcontainer_full_type = std::conditional_t<Dim == 1, ippl::FEMContainer<T, Dim, 1, 1>, std::conditional_t<Dim == 2, ippl::FEMContainer<T, Dim, 1, 1, 1>, ippl::FEMContainer<T, Dim, 1, 1, 1, 1>>>; // Full DOFs
+
+    // Vertex-only FEMContainer: Only DOFs on vertices
+    using femcontainer_vertex_only_type = ippl::FEMContainer<T, Dim, std::tuple<ippl::Vertex<Dim>>,
+                                            std::tuple<std::integral_constant<unsigned, 1>>>;
+
+    // Full FEMContainer: DOFs on all element types
+    using full_entitys = std::conditional_t<Dim == 1,
+                                        std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>>,
+                                    std::conditional_t<Dim == 2,
+                                        std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>, ippl::EdgeY<Dim>, ippl::FaceXY<Dim>>,
+                                    std::tuple<ippl::Vertex<Dim>, ippl::EdgeX<Dim>, ippl::EdgeY<Dim>, ippl::EdgeZ<Dim>,
+                                        ippl::FaceXY<Dim>, ippl::FaceXZ<Dim>, ippl::FaceYZ<Dim>, ippl::Hexahedron<Dim>>>>;
+
+    using full_dofnums = std::conditional_t<Dim == 1,
+                                        std::tuple<std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>>,
+                                    std::conditional_t<Dim == 2,
+                                        std::tuple<std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>>,
+                                    std::tuple<std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>,
+                                        std::integral_constant<unsigned, 1>>>>;
+
+    using femcontainer_full_type =  ippl::FEMContainer<T, Dim, full_entitys, full_dofnums>;
 
     FEMContainerTest()
     : nPoints(getGridSizes<Dim>()) {
@@ -55,8 +84,8 @@ public:
         
         // Set up DOF numbers for FEMContainer
         // Vertex-only FEMContainer: Only DOFs on vertices (comparable to Field)
-        femContainerVertexOnly = std::make_shared<femcontainer_vertex_only_type(*mesh, *layout);
-        
+        femContainerVertexOnly = std::make_shared<femcontainer_vertex_only_type>(*mesh, *layout);
+
         // Full FEMContainer: DOFs on all element types
         femContainerFull = std::make_shared<femcontainer_full_type>(*mesh, *layout);
     }
@@ -154,412 +183,577 @@ struct FieldVal {
     }
 };
 
-/*
-using Tests = TestParams::tests<1, 2, 3, 4, 5, 6>;
+using Tests = TestParams::tests<1, 2, 3>;
 TYPED_TEST_SUITE(FEMContainerTest, Tests);
 
-TYPED_TEST(FEMContainerTest, DeepCopy) {
-    auto& field = this->field;
 
-    *field    = 0;
-    auto copy = field->deepCopy();
-    copy      = copy + 1.;
-
-    auto mirrorA = field->getHostMirror();
-    auto mirrorB = copy.getHostMirror();
-
-    Kokkos::deep_copy(mirrorA, field->getView());
-    Kokkos::deep_copy(mirrorB, copy.getView());
-
-    nestedViewLoop(mirrorA, field->getNghost(), [&]<typename... Idx>(const Idx... args) {
-        assertEqual<typename TestFixture::value_type>(mirrorA(args...) + 1, mirrorB(args...));
-    });
-}
-*/
-
-TYPED_TEST(FEMContainerTest, Sum) {
-    // Test the sum function of the FEMContainer with vertex-only DOFs
+TYPED_TEST(FEMContainerTest, CopyConstructorVertexOnly) {
+    // Test copy constructor
     using T = typename TestFixture::value_type;
-
-    T val      = 1.0;
-    T expected = std::reduce(this->nPoints.begin(), this->nPoints.end(), val, std::multiplies<>{});
 
     auto& container = this->femContainerVertexOnly;
+    *container = 2.5;
 
-    *container = val;
+    // Create a copy using copy constructor
+    auto containerCopy = *container;
 
-    T sum = container->sum();
+    // Verify the values match by comparing norms
+    T norm_original = container->norm(2);
+    T norm_copy = containerCopy.norm(2);
 
-    assertEqual<T>(expected, sum);
+    assertEqual<T>(norm_original, norm_copy);
+
+    // Modify the copy and ensure original is unchanged
+    containerCopy += 1.0;
+    T norm_modified = containerCopy.norm(2);
+    T norm_original_after = container->norm(2);
+
+    assertEqual<T>(norm_original, norm_original_after);  // Original unchanged
+
+    // Modified copy should have larger norm
+    ASSERT_GT(norm_modified, norm_original);
 }
 
-
-/*
-TYPED_TEST(FEMContainerTest, Norm1) {
+TYPED_TEST(FEMContainerTest, CopyConstructorFull) {
+    // Test copy constructor
     using T = typename TestFixture::value_type;
 
-    T val      = -1.5;
-    T expected = std::reduce(this->nPoints.begin(), this->nPoints.end(), -val, std::multiplies<>{});
+    auto& container = this->femContainerFull;
+    *container = 2.5;
 
-    auto& field = this->field;
+    // Create a copy using copy constructor
+    auto containerCopy = *container;
 
-    *field = val;
+    // Verify the values match by comparing norms
+    T norm_original = container->norm(2);
+    T norm_copy = containerCopy.norm(2);
 
-    T norm1 = ippl::norm(*field, 1);
+    assertEqual<T>(norm_original, norm_copy);
+
+    // Modify the copy and ensure original is unchanged
+    containerCopy += 1.0;
+    T norm_modified = containerCopy.norm(2);
+    T norm_original_after = container->norm(2);
+
+    assertEqual<T>(norm_original, norm_original_after);  // Original unchanged
+
+    // Modified copy should have larger norm
+    ASSERT_GT(norm_modified, norm_original);
+}
+
+TYPED_TEST(FEMContainerTest, AssignmentOperatorVertexOnly) {
+    // Test assignment operator (FEMContainer = FEMContainer)
+    using T = typename TestFixture::value_type;
+
+    auto& container1 = this->femContainerVertexOnly;
+    *container1 = 3.5;
+
+    // Create another container and assign
+    typename TestFixture::femcontainer_vertex_only_type container2(*this->mesh, *this->layout);
+    container2 = 1.0;
+
+    T norm_before = container2.norm(2);
+    container2 = *container1;
+    T norm_after = container2.norm(2);
+
+    // After assignment, norms should match
+    assertEqual<T>(container1->norm(2), norm_after);
+
+    // Norm should have changed
+    ASSERT_NE(norm_before, norm_after);
+}
+
+TYPED_TEST(FEMContainerTest, AssignmentOperatorFull) {
+    // Test assignment operator (FEMContainer = FEMContainer)
+    using T = typename TestFixture::value_type;
+
+    auto& container1 = this->femContainerFull;
+    *container1 = 3.5;
+
+    // Create another container and assign
+    typename TestFixture::femcontainer_full_type container2(*this->mesh, *this->layout);
+    container2 = 1.0;
+
+    T norm_before = container2.norm(2);
+    container2 = *container1;
+    T norm_after = container2.norm(2);
+
+    // After assignment, norms should match
+    assertEqual<T>(container1->norm(2), norm_after);
+
+    // Norm should have changed
+    ASSERT_NE(norm_before, norm_after);
+}
+
+TYPED_TEST(FEMContainerTest, AssignmentScalarVertexOnly) {
+    // Test assignment of scalar to FEMContainer
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container = this->femContainerVertexOnly;
+    *container = 42;
+
+    // Verify by computing expected L1 norm (all values are positive 42)
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+
+    T expected_norm1 = 42 * numPoints;
+    T norm1 = container->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, AssignmentScalarFull) {
+    // Test assignment of scalar to FEMContainer
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container = this->femContainerFull;
+    *container = 42;
+
+    // Verify by computing expected L1 norm (all values are positive 42)
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+
+    T expected_norm1 = 42 * numPoints;
+    T norm1 = container->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, AdditionScalarVertexOnly) {
+    // Test operator+= with scalar
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container = this->femContainerVertexOnly;
+    *container = 2.0;
+
+    *container += 3.0;
+
+    // L1 norm should be 5.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+
+    T expected_norm1 = 5.0 * numPoints;
+    T norm1 = container->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, AdditionScalarFull) {
+    // Test operator+= with scalar
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container = this->femContainerFull;
+    *container = 2.0;
+
+    *container += 3.0;
+
+    // L1 norm should be 5.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+
+    T expected_norm1 = 5.0 * numPoints;
+    T norm1 = container->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, SubtractionScalarVertexOnly) {
+    // Test operator-= with scalar
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container = this->femContainerVertexOnly;
+    *container = 10.0;
+
+    *container -= 3.0;
+
+    // L1 norm should be 7.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+
+    T expected_norm1 = 7.0 * numPoints;
+    T norm1 = container->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, SubtractionScalarFull) {
+    // Test operator-= with scalar
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container = this->femContainerFull;
+    *container = 10.0;
+
+    *container -= 3.0;
+
+    // L1 norm should be 7.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+
+    T expected_norm1 = 7.0 * numPoints;
+    T norm1 = container->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, AdditionContainersVertexOnly) {
+    // Test operator+= with two FEMContainers
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerVertexOnly;
+    *container1 = 2.0;
+
+    typename TestFixture::femcontainer_vertex_only_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    *container1 += container2;
+
+    // L1 norm should be 5.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+
+    T expected_norm1 = 5.0 * numPoints;
+    T norm1 = container1->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, AdditionContainersFull) {
+    // Test operator+= with two FEMContainers
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerFull;
+    *container1 = 2.0;
+
+    typename TestFixture::femcontainer_full_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    *container1 += container2;
+
+    // L1 norm should be 5.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+
+    T expected_norm1 = 5.0 * numPoints;
+    T norm1 = container1->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, SubtractionContainersVertexOnly) {
+    // Test operator-= with two FEMContainers
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerVertexOnly;
+    *container1 = 10.0;
+
+    typename TestFixture::femcontainer_vertex_only_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    *container1 -= container2;
+
+    // L1 norm should be 7.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+
+    T expected_norm1 = 7.0 * numPoints;
+    T norm1 = container1->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, SubtractionContainersFull) {
+    // Test operator-= with two FEMContainers
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerFull;
+    *container1 = 10.0;
+
+    typename TestFixture::femcontainer_full_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    *container1 -= container2;
+
+    // L1 norm should be 7.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+
+    T expected_norm1 = 7.0 * numPoints;
+    T norm1 = container1->norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+}
+
+TYPED_TEST(FEMContainerTest, BinaryAdditionVertexOnly) {
+    // Test operator+ (binary addition)
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerVertexOnly;
+    *container1 = 2.0;
+
+    typename TestFixture::femcontainer_vertex_only_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    auto result = *container1 + container2;
+
+    // Result L1 norm should be 5.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+    T expected_norm1 = 5.0 * numPoints;
+    T norm1 = result.norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+
+    // Verify original containers are unchanged
+    assertEqual<T>(container1->norm(1), 2.0 * numPoints);
+    assertEqual<T>(container2.norm(1), 3.0 * numPoints);
+}
+
+TYPED_TEST(FEMContainerTest, BinaryAdditionFull) {
+    // Test operator+ (binary addition)
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerFull;
+    *container1 = 2.0;
+
+    typename TestFixture::femcontainer_full_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    auto result = *container1 + container2;
+
+    // Result L1 norm should be 5.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+    T expected_norm1 = 5.0 * numPoints;
+    T norm1 = result.norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+
+    // Verify original containers are unchanged
+    assertEqual<T>(container1->norm(1), 2.0 * numPoints);
+    assertEqual<T>(container2.norm(1), 3.0 * numPoints);
+}
+
+TYPED_TEST(FEMContainerTest, BinarySubtractionVertexOnly) {
+    // Test operator- (binary subtraction)
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerVertexOnly;
+    *container1 = 10.0;
+
+    typename TestFixture::femcontainer_vertex_only_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    auto result = *container1 - container2;
+
+    // Result L1 norm should be 7.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+
+    T expected_norm1 = 7.0 * numPoints;
+    T norm1 = result.norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+
+    // Verify original containers are unchanged
+    assertEqual<T>(container1->norm(1), 10.0 * numPoints);
+    assertEqual<T>(container2.norm(1), 3.0 * numPoints);
+}
+
+TYPED_TEST(FEMContainerTest, BinarySubtractionFull) {
+    // Test operator- (binary subtraction)
+    using T = typename TestFixture::value_type;
+    unsigned constexpr Dim = TestFixture::dim;
+
+    auto& container1 = this->femContainerFull;
+    *container1 = 10.0;
+
+    typename TestFixture::femcontainer_full_type container2(*this->mesh, *this->layout);
+    container2 = 3.0;
+
+    auto result = *container1 - container2;
+
+    // Result L1 norm should be 7.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+
+    T expected_norm1 = 7.0 * numPoints;
+    T norm1 = result.norm(1);
+
+    assertEqual<T>(expected_norm1, norm1);
+
+    // Verify original containers are unchanged
+    assertEqual<T>(container1->norm(1), 10.0 * numPoints);
+    assertEqual<T>(container2.norm(1), 3.0 * numPoints);
+}
+
+TYPED_TEST(FEMContainerTest, Norm1ContainerVertexOnly) {
+    // Test L1 norm (p=1)
+    using T = typename TestFixture::value_type;
+    constexpr unsigned Dim = TestFixture::dim;
+
+    auto& container = this->femContainerVertexOnly;
+    *container = -2.0;
+
+    T norm1 = container->norm(1);
+
+    // L1 norm should be sum of absolute values = 2.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
+    }
+
+    T expected = 2.0 * numPoints;
 
     assertEqual<T>(expected, norm1);
 }
 
-TYPED_TEST(FEMContainerTest, Norm2) {
+TYPED_TEST(FEMContainerTest, Norm1ContainerFull) {
+    // Test L1 norm (p=1)
     using T = typename TestFixture::value_type;
-
-    T val = 1.5;
-    T squared =
-        std::reduce(this->nPoints.begin(), this->nPoints.end(), val * val, std::multiplies<>{});
-
-    auto& field = this->field;
-
-    *field = val;
-
-    T norm2 = ippl::norm(*field);
-
-    assertEqual<T>(std::sqrt(squared), norm2);
-}
-
-TYPED_TEST(FEMContainerTest, NormInf) {
-    using T                = typename TestFixture::value_type;
     constexpr unsigned Dim = TestFixture::dim;
 
-    T val      = 1.;
-    T expected = std::accumulate(this->nPoints.begin(), this->nPoints.end(), -val);
+    auto& container = this->femContainerFull;
+    *container = -2.0;
 
-    auto& field = this->field;
+    T norm1 = container->norm(1);
 
-    const ippl::NDIndex<Dim> lDom = field->getLayout().getLocalNDIndex();
+    // L1 norm should be sum of absolute values = 2.0 * numPoints
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
 
-    auto view                     = field->getView();
-    const ippl::Vector<T, Dim> dx = field->get_mesh().getMeshSpacing();
-    FieldVal<TypeParam> fv(view, lDom, dx);
-    Kokkos::parallel_for(
-        "Set field", field->template getFieldRangePolicy<typename FieldVal<TypeParam>::Norm>(), fv);
+    T expected = 2.0 * numPoints;
 
-    T normInf = ippl::norm(*field, 0);
-
-    assertEqual<T>(expected, normInf);
+    assertEqual<T>(expected, norm1);
 }
 
-TYPED_TEST(FEMContainerTest, VolumeIntegral) {
-    using T                = typename TestFixture::value_type;
-    constexpr unsigned Dim = TestFixture::dim;
-
-    auto& field = this->field;
-
-    T tol                         = 5 * tolerance<T>;
-    const ippl::NDIndex<Dim> lDom = field->getLayout().getLocalNDIndex();
-    const int shift               = field->getNghost();
-
-    const ippl::Vector<T, Dim> dx = field->get_mesh().getMeshSpacing();
-    auto view                     = field->getView();
-
-    FieldVal<TypeParam> fv(view, lDom, dx, shift);
-    Kokkos::parallel_for(
-        "Set field", field->template getFieldRangePolicy<typename FieldVal<TypeParam>::Integral>(),
-        fv);
-
-    ASSERT_NEAR(field->getVolumeIntegral(), 0., tol);
-}
-
-TYPED_TEST(FEMContainerTest, VolumeIntegral2) {
+TYPED_TEST(FEMContainerTest, Norm2ContainerVertexOnly) {
+    // Test L2 norm (p=2)
     using T = typename TestFixture::value_type;
-
-    auto& field = this->field;
-
-    *field     = 1.;
-    T integral = field->getVolumeIntegral();
-    T volume   = field->get_mesh().getMeshVolume();
-
-    assertEqual<T>(integral, volume);
-}
-
-TYPED_TEST(FEMContainerTest, Grad) {
-    auto& field = this->field;
-
-    *field = 1.;
-
-    typename TestFixture::vfield_type vfield(field->get_mesh(), field->getLayout());
-    vfield = grad(*field);
-
-    const int shift = vfield.getNghost();
-    auto view       = vfield.getView();
-    auto mirror     = Kokkos::create_mirror_view(view);
-    Kokkos::deep_copy(mirror, view);
-
-    nestedViewLoop(mirror, shift, [&]<typename... Idx>(const Idx... args) {
-        for (size_t d = 0; d < TestFixture::dim; d++) {
-            assertEqual<typename TestFixture::value_type>(mirror(args...)[d], 0.);
-        }
-    });
-}
-
-TYPED_TEST(FEMContainerTest, Div) {
-    using T                = typename TestFixture::value_type;
     constexpr unsigned Dim = TestFixture::dim;
 
-    auto& field = this->field;
+    auto& container = this->femContainerVertexOnly;
+    *container = 3.0;
 
-    typename TestFixture::vfield_type vfield(field->get_mesh(), field->getLayout());
-    auto view        = vfield.getView();
-    const int vshift = vfield.getNghost();
+    T norm2 = container->norm(2);
 
-    const ippl::NDIndex<Dim> lDom = vfield.getLayout().getLocalNDIndex();
-
-    const ippl::Vector<T, Dim> dx = vfield.get_mesh().getMeshSpacing();
-    VFieldVal<TypeParam> fv(view, lDom, dx, vshift);
-    Kokkos::parallel_for("Set field", vfield.getFieldRangePolicy(vshift), fv);
-
-    *field = div(vfield);
-
-    const int shift = field->getNghost();
-    auto mirror     = Kokkos::create_mirror_view(field->getView());
-    Kokkos::deep_copy(mirror, field->getView());
-
-    nestedViewLoop(mirror, shift, [&]<typename... Idx>(const Idx... args) {
-        assertEqual<T>(mirror(args...), Dim);
-    });
-}
-
-TYPED_TEST(FEMContainerTest, Curl) {
-    constexpr unsigned Dim = TestFixture::dim;
-    // Restrict to 3D case for now
-    if constexpr (Dim == 3) {
-        using T = typename TestFixture::value_type;
-
-        using vfield_type = typename TestFixture::vfield_type;
-
-        auto& mesh   = this->mesh;
-        auto& layout = this->layout;
-
-        vfield_type vfield(*mesh, *layout);
-        const int nghost = vfield.getNghost();
-        auto view_field  = vfield.getView();
-
-        ippl::NDIndex<Dim> lDom     = layout->getLocalNDIndex();
-        ippl::Vector<T, Dim> hx     = mesh->getMeshSpacing();
-        ippl::Vector<T, Dim> origin = mesh->getOrigin();
-
-        auto mirror = Kokkos::create_mirror_view(view_field);
-        Kokkos::deep_copy(mirror, view_field);
-
-        for (unsigned int gd = 0; gd < Dim; ++gd) {
-            bool dim0 = (gd == 0);
-            bool dim1 = (gd == 1);
-            bool dim2 = (gd == 2);
-
-            for (size_t i = 0; i < view_field.extent(0); ++i) {
-                for (size_t j = 0; j < view_field.extent(1); ++j) {
-                    for (size_t k = 0; k < view_field.extent(2); ++k) {
-                        // local to global index conversion
-                        const int ig = i + lDom[0].first() - nghost;
-                        const int jg = j + lDom[1].first() - nghost;
-                        const int kg = k + lDom[2].first() - nghost;
-
-                        T x = (ig + 0.5) * hx[0] + origin[0];
-                        T y = (jg + 0.5) * hx[1] + origin[1];
-                        T z = (kg + 0.5) * hx[2] + origin[2];
-
-                        mirror(i, j, k)[gd] = dim0 * (y * z) + dim1 * (x * z) + dim2 * (x * y);
-                    }
-                }
-            }
-        }
-
-        Kokkos::deep_copy(view_field, mirror);
-
-        vfield_type result(*mesh, *layout);
-        result = curl(vfield);
-
-        const int shift = result.getNghost();
-        auto view       = result.getView();
-        mirror          = Kokkos::create_mirror_view(view);
-        Kokkos::deep_copy(mirror, view);
-
-        for (size_t i = shift; i < mirror.extent(0) - shift; ++i) {
-            for (size_t j = shift; j < mirror.extent(1) - shift; ++j) {
-                for (size_t k = shift; k < mirror.extent(2) - shift; ++k) {
-                    for (size_t d = 0; d < Dim; ++d) {
-                        assertEqual<T>(mirror(i, j, k)[d], 0.);
-                    }
-                }
-            }
-        }
+    // L2 norm should be sqrt(sum of squares) = sqrt(9.0 * numPoints)
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= gridsizes[d];  //Only vertex DOFs, so this is number of DOFs in each direction
     }
+    T expected = std::sqrt(9.0 * numPoints);
+
+    assertEqual<T>(expected, norm2);
 }
 
-TYPED_TEST(FEMContainerTest, Hessian) {
-    using T                = typename TestFixture::value_type;
+TYPED_TEST(FEMContainerTest, Norm2ContainerFull) {
+    // Test L2 norm (p=2)
+    using T = typename TestFixture::value_type;
     constexpr unsigned Dim = TestFixture::dim;
 
-    auto& field  = this->field;
-    auto& mesh   = this->mesh;
-    auto& layout = this->layout;
+    auto& container = this->femContainerFull;
+    *container = 3.0;
 
-    typedef ippl::Vector<T, Dim> Vector_t;
-    typedef ippl::Field<ippl::Vector<Vector_t, Dim>, Dim, typename TestFixture::mesh_type,
-                        typename TestFixture::centering_type, typename TestFixture::exec_space>
-        MField_t;
+    T norm2 = container->norm(2);
 
-    int nghost      = field->getNghost();
-    auto view_field = field->getView();
+    // L2 norm should be sqrt(sum of squares) = sqrt(9.0 * numPoints)
+    size_t numPoints = 1;
+    ippl::Vector<T, Dim> gridsizes = this->mesh->getGridsize();
+    for(unsigned d=0; d<Dim; d++){
+        numPoints *= (2*gridsizes[d]-1);  //Vertey, edges, faces, volumes all have 1 DOF per entity, so total DOFs per direction is 2*nPoints[d]-1
+    }
+    T expected = std::sqrt(9.0 * numPoints);
 
-    ippl::NDIndex<Dim> lDom = layout->getLocalNDIndex();
-    Vector_t hx             = mesh->getMeshSpacing();
-    Vector_t origin         = mesh->getOrigin();
-
-    FieldVal<TypeParam> fv(view_field, lDom, hx, nghost);
-    Kokkos::parallel_for(
-        "Set field",
-        field->template getFieldRangePolicy<typename FieldVal<TypeParam>::Hessian>(nghost), fv);
-
-    MField_t result(*mesh, *layout);
-    result = hess(*field);
-
-    nghost             = result.getNghost();
-    auto view_result   = result.getView();
-    auto mirror_result = Kokkos::create_mirror_view(view_result);
-    Kokkos::deep_copy(mirror_result, view_result);
-
-    constexpr T tol = tolerance<T>;
-    nestedViewLoop(mirror_result, nghost, [&]<typename... Idx>(const Idx... args) {
-        T det = 0;
-        for (unsigned d = 0; d < Dim; d++) {
-            det += mirror_result(args...)[d][d];
-        }
-        ASSERT_NEAR(det, 0., tol);
-    });
+    assertEqual<T>(expected, norm2);
 }
 
-TYPED_TEST(FEMContainerTest, Laplace) {
-    auto& mesh   = this->mesh;
-    auto& layout = this->layout;
-    auto& field  = this->field;
-
-    using field_type     = typename TestFixture::field_type;
-    using T              = typename TestFixture::value_type;
-    constexpr size_t Dim = TestFixture::dim;
-
-    field_type laplacian(*mesh, *layout);
-
-    const int nghost = field->getNghost();
-
-    using bc_type = ippl::BConds<field_type, Dim>;
-    bc_type bcField;
-    for (size_t i = 0; i < 2 * Dim; ++i) {
-        bcField[i] = std::make_shared<ippl::ConstantFace<field_type>>(i, 1);
-    }
-
-    field->setFieldBC(bcField);
-    laplacian.setFieldBC(bcField);
-
-    *field    = 1;
-    laplacian = ippl::laplace(*field);
-
-    auto mirror = laplacian.getHostMirror();
-    Kokkos::deep_copy(mirror, laplacian.getView());
-    nestedViewLoop(mirror, nghost, [&]<typename... Idx>(const Idx... args) {
-        assertEqual<T>(mirror(args...), 0.);
-    });
-}
-TYPED_TEST(FEMContainerTest, LowerLaplace) {
-    auto& mesh   = this->mesh;
-    auto& layout = this->layout;
-    auto& field  = this->field;
-
-    using field_type     = typename TestFixture::field_type;
-    using T              = typename TestFixture::value_type;
-    constexpr size_t Dim = TestFixture::dim;
-
-    field_type laplacian(*mesh, *layout);
-    field_type lower_laplacian(*mesh, *layout);
-    field_type upper_laplacian(*mesh, *layout);
-    field_type diagonal_laplacian(*mesh, *layout);
-
-    const int nghost = field->getNghost();
-
-    using bc_type = ippl::BConds<field_type, Dim>;
-    bc_type bcField;
-    for (size_t i = 0; i < 2 * Dim; ++i) {
-        bcField[i] = std::make_shared<ippl::PeriodicFace<field_type>>(i);
-    }
-
-    field->setFieldBC(bcField);
-
-    lower_laplacian.setFieldBC(bcField);
-    upper_laplacian.setFieldBC(bcField);
-    diagonal_laplacian.setFieldBC(bcField);
-    laplacian.setFieldBC(bcField);
-
-    double diagonal_factor = 0;
-    for (unsigned d = 0; d < Dim; ++d) {
-        diagonal_factor += 2.0 / std::pow(mesh->getMeshSpacing(d), 2);
-    }
-
-    *field             = 1;
-    lower_laplacian    = ippl::lower_laplace(*field);
-    upper_laplacian    = ippl::upper_laplace(*field);
-    diagonal_laplacian = -diagonal_factor * (*field);
-    laplacian          = lower_laplacian + diagonal_laplacian + upper_laplacian;
-
-    auto mirror = laplacian.getHostMirror();
-    Kokkos::deep_copy(mirror, laplacian.getView());
-    nestedViewLoop(mirror, nghost, [&]<typename... Idx>(const Idx... args) {
-        assertEqual<T>(mirror(args...), 0.);
-    });
+TYPED_TEST(FEMContainerTest, NormZeroContainerVertexOnly) {
+    // Test norm of zero container
+    using T = typename TestFixture::value_type;
+    
+    auto& container = this->femContainerVertexOnly;
+    *container = 0.0;
+    
+    T norm1 = container->norm(1);
+    T norm2 = container->norm(2);
+    
+    assertEqual<T>(0.0, norm1);
+    assertEqual<T>(0.0, norm2);
 }
 
-TYPED_TEST(FEMContainerTest, UpperAndLowerLaplace) {
-    auto& mesh   = this->mesh;
-    auto& layout = this->layout;
-    auto& field  = this->field;
-
-    using field_type     = typename TestFixture::field_type;
-    using T              = typename TestFixture::value_type;
-    constexpr size_t Dim = TestFixture::dim;
-
-    field_type laplacian(*mesh, *layout);
-    field_type upper_and_lower_laplacian(*mesh, *layout);
-    field_type diagonal_laplacian(*mesh, *layout);
-
-    const int nghost = field->getNghost();
-
-    using bc_type = ippl::BConds<field_type, Dim>;
-    bc_type bcField;
-    for (size_t i = 0; i < 2 * Dim; ++i) {
-        bcField[i] = std::make_shared<ippl::PeriodicFace<field_type>>(i);
-    }
-
-    field->setFieldBC(bcField);
-
-    upper_and_lower_laplacian.setFieldBC(bcField);
-    diagonal_laplacian.setFieldBC(bcField);
-    laplacian.setFieldBC(bcField);
-
-    double diagonal_factor = 0;
-    for (unsigned d = 0; d < Dim; ++d) {
-        diagonal_factor += 2.0 / std::pow(mesh->getMeshSpacing(d), 2);
-    }
-
-    *field                    = 1;
-    upper_and_lower_laplacian = ippl::upper_and_lower_laplace(*field);
-    diagonal_laplacian        = -diagonal_factor * (*field);
-    laplacian                 = upper_and_lower_laplacian + diagonal_laplacian;
-
-    auto mirror = laplacian.getHostMirror();
-    Kokkos::deep_copy(mirror, laplacian.getView());
-    nestedViewLoop(mirror, nghost, [&]<typename... Idx>(const Idx... args) {
-        assertEqual<T>(mirror(args...), 0.);
-    });
+TYPED_TEST(FEMContainerTest, NormZeroContainerFull) {
+    // Test norm of zero container
+    using T = typename TestFixture::value_type;
+    
+    auto& container = this->femContainerFull;
+    *container = 0.0;
+    
+    T norm1 = container->norm(1);
+    T norm2 = container->norm(2);
+    
+    assertEqual<T>(0.0, norm1);
+    assertEqual<T>(0.0, norm2);
 }
-*/
 
 int main(int argc, char* argv[]) {
     int success = 1;

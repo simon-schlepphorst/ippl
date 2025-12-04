@@ -104,7 +104,10 @@ function(set_kokkos_options)
   endforeach()
 
   if("CUDA" IN_LIST IPPL_PLATFORMS)
-    set(Kokkos_ENABLE_CUDA_LAMBDA ON)
+    set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "Enable CUDA lambda support" FORCE)
+    # Enable relaxed constexpr (allows calling constexpr __host__ functions from __device__)
+    set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "Enable CUDA constexpr support" FORCE)
+    message(STATUS "IPPL: Enabled Kokkos_ENABLE_CUDA_CONSTEXPR for --expt-relaxed-constexpr")
   endif()
 
   if("HIP" IN_LIST IPPL_PLATFORMS)

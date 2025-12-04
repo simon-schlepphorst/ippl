@@ -49,9 +49,11 @@ namespace ippl {
          */
         struct DOFMapping {
             size_t entityTypeIndex;                         // Index in the EntityTypes tuple
-            Kokkos::Array<size_t, Dim> entityLocalIndex;    // Offset from the NDIndex of the element to the NDIndex of the DOF (0 or 1 in each dimension)
+            indices_t entityLocalIndex;                     // Offset from the NDIndex of the element to the NDIndex of the DOF (0 or 1 in each dimension)
             size_t entityLocalDOF;                          // Local DOF number within the entity
         };
+
+        using DOFMapping_t = DOFMapping;
 
         ///////////////////////////////////////////////////////////////////////
         // Constructors ///////////////////////////////////////////////////////
@@ -83,6 +85,45 @@ namespace ippl {
          * @return NDIndex of the element in the mesh
          */
         KOKKOS_FUNCTION indices_t getElementNDIndex(const size_t& elementIndex) const;
+
+        /**
+         * @brief Get local element NDIndex from linear element index
+         *
+         * This converts a global linear element index to the local NDIndex within the
+         * MPI subdomain, accounting for the local domain offset. The result is in the
+         * local coordinate system of this rank.
+         *
+         * @param elementIndex Linear element index (global)
+         * @return NDIndex of the element in the local subdomain
+         */
+        KOKKOS_FUNCTION indices_t getLocalElementNDIndex(const size_t& elementIndex, int nghost) const;
+
+        /**
+         * @brief Check if a DOF is on the domain boundary in a specific dimension
+         *
+         * Determines if a DOF within an element lies on the global domain boundary
+         * in the specified dimension. This allows checking boundaries per dimension,
+         * which is useful when different boundary conditions are applied in different
+         * dimensions.
+         *
+         * @param elementIndex Linear element index (global)
+         * @param localDOF Local DOF index within the element (0 to dofsPerElement-1)
+         * @param dim The dimension to check (0 to Dim-1)
+         * @return true if the DOF is on the boundary in the specified dimension, false otherwise
+         */
+        KOKKOS_FUNCTION bool isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF,
+                                              const unsigned& dim) const;
+
+        /**
+         * @brief Check if a DOF is on the domain boundary in any dimension.
+         *
+         * Determines if a DOF within an element lies on the global domain boundary.
+         *
+         * @param elementIndex Linear element index (global)
+         * @param localDOF Local DOF index within the element (0 to dofsPerElement-1)
+         * @return true if the DOF is on the boundary, false otherwise
+         */
+        KOKKOS_FUNCTION bool isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF) const;
 
         /**
          * @brief Get the total number of elements in the mesh
@@ -141,27 +182,18 @@ namespace ippl {
         // FEMContainer Creation /////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////
 
-        /**
-         * @brief Create a FEMContainer with the correct template parameters for this space
-         *
-         * Creates a FEMContainer that is compatible with this DOFHandler's space traits.
-         * The FEMContainer will be initialized with the mesh and layout from this DOFHandler.
-         *
-         * @param nghost Number of ghost layers (default: 1)
-         * @return FEMContainer_t A FEMContainer compatible with this space
-         */
-        FEMContainer_t createFEMContainer(int nghost = 1) const;
-
     private:
         ///////////////////////////////////////////////////////////////////////
         // Member Variables ///////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////
         
         Mesh_t* mesh_m;
-        const Layout_t* layout_m;
-        
+
         // Number of elements in each direction
         Vector<size_t, Dim> ne_m;
+
+        // Local element domain
+        NDIndex<Dim> lElemDom_m;
 
         // DOF mapping table (device view)
         Kokkos::View<DOFMapping*> dofMappingTable_m;

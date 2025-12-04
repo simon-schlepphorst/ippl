@@ -17,7 +17,7 @@ namespace ippl {
         static_assert(Dim >= 1 && Dim <= 3, "Dimension must be between 1 and 3");
 
         // Function to get the direction array of the entity
-        std::array<bool, Dim> getDir() {
+        KOKKOS_INLINE_FUNCTION constexpr std::array<bool, Dim> getDir() {
             static_assert(requires {
                 { Derived::dir } -> std::convertible_to<const std::array<bool, Dim>&>;
             }, "Derived Entity class must have a static member 'dir' of type std::array<bool, Dim>");
