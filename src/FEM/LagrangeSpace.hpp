@@ -1780,6 +1780,8 @@ namespace ippl {
         }(std::make_index_sequence<numTypes>{});
 
         // Loop over all elements on the host
+        auto elementIndices_host = Kokkos::create_mirror_view(elementIndices);
+        Kokkos::deep_copy(elementIndices_host, elementIndices);
         size_t numElements = elementIndices.extent(0);
 
         for (size_t elemIdx = 0; elemIdx < numElements; ++elemIdx) {
@@ -1787,7 +1789,7 @@ namespace ippl {
             using vertex_points_t = typename ElementType::vertex_points_t;
 
             // Get element index
-            const size_t elementIndex = elementIndices(elemIdx);
+            const size_t elementIndex = elementIndices_host(elemIdx);
             const indices_t localElementNDIndex =
                 dofHandler_m.getLocalElementNDIndex(elementIndex, nghost);
             const indices_t globalElementNDIndex = dofHandler_m.getElementNDIndex(elementIndex);
