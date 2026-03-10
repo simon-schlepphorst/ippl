@@ -1693,8 +1693,9 @@ namespace ippl {
 
         IpplTimings::stopTimer(outer_loop);
 
-        // temp_field.accumulateHalo();
+        temp_field.accumulateHalo();
 
+        // FIXME: Probably double boundaries on PERIODIC_FACE ??
         // TODO add Periodic BC handling for entity type views
         if (bcTypes[0] == PERIODIC_FACE) {
             temp_field.accumulateHalo();
