@@ -195,7 +195,8 @@ namespace ippl {
     }
 
     template <typename T, unsigned Dim, class... ViewArgs>
-    void BareField<T, Dim, ViewArgs...>::accumulateHalo_noghost(const std::array<bool, Dim>& exchangeDir, int nghost) {
+    void BareField<T, Dim, ViewArgs...>::accumulateHalo_noghost(
+        const std::array<bool, Dim>& exchangeDir, int nghost) {
         if (layout_m->comm.size() > 1) {
             halo_m.accumulateHalo_noghost(dview_m, layout_m, exchangeDir, nghost);
         }

@@ -22,10 +22,10 @@ int main(int argc, char* argv[]) {
         constexpr unsigned int dim = 3;
         using Mesh_t               = ippl::UniformCartesian<double, dim>;
         using Centering_t          = Mesh_t::DefaultCentering;
-        using Layout_t            = ippl::FieldLayout<dim>;
+        using Layout_t             = ippl::FieldLayout<dim>;
 
         // Get number of points and lagrange order from command line
-        int pt         = std::atoi(argv[1]);
+        int pt                   = std::atoi(argv[1]);
         constexpr unsigned order = 3;
 
         // true to create a field, false to create a FEMContainer
@@ -33,8 +33,8 @@ int main(int argc, char* argv[]) {
 
         // For field, we use h refinemendt, so increase number of points
         // according to the order of the Lagrange polynomial
-        if(field) {
-           pt = order * (pt - 1) + 1;
+        if (field) {
+            pt = order * (pt - 1) + 1;
         }
 
         ippl::Index I(pt);
@@ -53,43 +53,41 @@ int main(int argc, char* argv[]) {
         ippl::Vector<double, 3> origin = {0.0, 0.0, 0.0};
         Mesh_t mesh(owned, hx, origin);
 
-
-        if(field) {
+        if (field) {
             // create field
             ippl::Field<double, dim, Mesh_t, Centering_t> field(mesh, layout, 1);
 
             field = 1.0;
 
             std::cout << "Field created with order " << order << " and set to 1.0." << std::endl;
-        }
-        else {
+        } else {
             // Number of DOFs equal to 1 for each element
             using femcontainer_full_type = std::conditional_t<
-                                                order == 1,
-                                                ippl::FEMContainer<double, dim,
-                                                    std::tuple<ippl::Vertex<dim>>,
-                                                    std::tuple<std::integral_constant<unsigned, 1>>>,
-                                                ippl::FEMContainer<double, dim,
-                                                    std::tuple<ippl::Vertex<dim>, ippl::EdgeX<dim>, ippl::EdgeY<dim>, ippl::EdgeZ<dim>,
-                                                            ippl::FaceXY<dim>, ippl::FaceXZ<dim>, ippl::FaceYZ<dim>, ippl::Hexaedron<dim>
-                                                    >,
-                                                    std::tuple<std::integral_constant<unsigned, 1>,
-                                                            std::integral_constant<unsigned, order - 1>,
-                                                            std::integral_constant<unsigned, order - 1>,
-                                                            std::integral_constant<unsigned, order - 1>,
-                                                            std::integral_constant<unsigned, (order - 1) * (order - 1)>,
-                                                            std::integral_constant<unsigned, (order - 1) * (order - 1)>,
-                                                            std::integral_constant<unsigned, (order - 1) * (order - 1)>,
-                                                            std::integral_constant<unsigned, (order - 1) * (order - 1) * (order - 1)>
-                                                    >
-                                                > // Full DOFs
-                                            >;
+                order == 1,
+                ippl::FEMContainer<double, dim, std::tuple<ippl::Vertex<dim>>,
+                                   std::tuple<std::integral_constant<unsigned, 1>>>,
+                ippl::FEMContainer<
+                    double, dim,
+                    std::tuple<ippl::Vertex<dim>, ippl::EdgeX<dim>, ippl::EdgeY<dim>,
+                               ippl::EdgeZ<dim>, ippl::FaceXY<dim>, ippl::FaceXZ<dim>,
+                               ippl::FaceYZ<dim>, ippl::Hexaedron<dim>>,
+                    std::tuple<std::integral_constant<unsigned, 1>,
+                               std::integral_constant<unsigned, order - 1>,
+                               std::integral_constant<unsigned, order - 1>,
+                               std::integral_constant<unsigned, order - 1>,
+                               std::integral_constant<unsigned, (order - 1) * (order - 1)>,
+                               std::integral_constant<unsigned, (order - 1) * (order - 1)>,
+                               std::integral_constant<unsigned, (order - 1) * (order - 1)>,
+                               std::integral_constant<unsigned, (order - 1) * (order - 1)
+                                                                    * (order - 1)>>>  // Full DOFs
+                >;
 
             femcontainer_full_type femContainer(mesh, layout);
 
             femContainer = 1.0;
 
-            std::cout << "FEMContainer with order " << order << " created with DOFs on all element types." << std::endl;
+            std::cout << "FEMContainer with order " << order
+                      << " created with DOFs on all element types." << std::endl;
         }
     }
     ippl::finalize();

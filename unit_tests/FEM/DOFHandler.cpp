@@ -15,18 +15,18 @@ protected:
     void SetUp() override {}
 
 public:
-    using value_type = T;
-    using exec_space = ExecSpace;
-    static constexpr unsigned dim = Dim;
+    using value_type                = T;
+    using exec_space                = ExecSpace;
+    static constexpr unsigned dim   = Dim;
     static constexpr unsigned order = Order;
 
     static_assert(Dim >= 1 && Dim <= 3, "Dim must be 1, 2 or 3");
     static_assert(Order >= 1 && Order <= 4, "Order must be 1, 2, 3, or 4");
 
-    using mesh_type = ippl::UniformCartesian<T, Dim>;
-    using layout_type = ippl::FieldLayout<Dim>;
+    using mesh_type       = ippl::UniformCartesian<T, Dim>;
+    using layout_type     = ippl::FieldLayout<Dim>;
     using DOFHandler_type = ippl::LagrangeDOFHandler<T, Dim, Order>;
-    using SpaceTraits = typename DOFHandler_type::SpaceTraits;
+    using SpaceTraits     = typename DOFHandler_type::SpaceTraits;
 
     DOFHandlerTest()
         : nPoints(getGridSizes<Dim>()) {
@@ -51,8 +51,8 @@ public:
             origin[d] = 0;
         }
 
-        layout = std::make_shared<layout_type>(MPI_COMM_WORLD, owned, isParallel);
-        mesh   = std::make_shared<mesh_type>(owned, hx, origin);
+        layout     = std::make_shared<layout_type>(MPI_COMM_WORLD, owned, isParallel);
+        mesh       = std::make_shared<mesh_type>(owned, hx, origin);
         dofHandler = std::make_shared<DOFHandler_type>(*mesh, *layout);
     }
 
@@ -80,15 +80,14 @@ using AllTests = ::testing::Types<
     Parameters<double, Kokkos::DefaultExecutionSpace, Rank<3>, Rank<1>>,
     Parameters<double, Kokkos::DefaultExecutionSpace, Rank<3>, Rank<2>>,
     Parameters<double, Kokkos::DefaultExecutionSpace, Rank<3>, Rank<3>>,
-    Parameters<double, Kokkos::DefaultExecutionSpace, Rank<3>, Rank<4>>
->;
+    Parameters<double, Kokkos::DefaultExecutionSpace, Rank<3>, Rank<4>>>;
 
 TYPED_TEST_CASE(DOFHandlerTest, AllTests);
 
 // Test that dofsPerElement is calculated correctly
 TYPED_TEST(DOFHandlerTest, DOFsPerElement) {
-    constexpr unsigned dim = TestFixture::dim;
-    constexpr unsigned order = TestFixture::order;
+    constexpr unsigned dim            = TestFixture::dim;
+    constexpr unsigned order          = TestFixture::order;
     constexpr unsigned dofsPerElement = TestFixture::DOFHandler_type::dofsPerElement;
 
     // For Lagrange elements:
@@ -123,8 +122,7 @@ TYPED_TEST(DOFHandlerTest, DOFsPerElement) {
     } else if constexpr (dim == 3 && order == 3) {
         // 8 vertices + 12 edges with 2 DOFs each + 6 faces with 4 DOFs each + 1 volume with 8 DOFs
         EXPECT_EQ(dofsPerElement, 64u);
-    }
-    else if constexpr (dim == 3 && order == 4) {
+    } else if constexpr (dim == 3 && order == 4) {
         // 8 vertices + 12 edges with 3 DOFs each + 6 faces with 9 DOFs each + 1 volume with 27 DOFs
         EXPECT_EQ(dofsPerElement, 125u);
     } else {
@@ -134,13 +132,14 @@ TYPED_TEST(DOFHandlerTest, DOFsPerElement) {
 
 // Test entity DOF range functions
 TYPED_TEST(DOFHandlerTest, EntityDOFRanges) {
-    using DOFHandler_type = typename TestFixture::DOFHandler_type;
-    constexpr unsigned dim = TestFixture::dim;
+    using DOFHandler_type    = typename TestFixture::DOFHandler_type;
+    constexpr unsigned dim   = TestFixture::dim;
     constexpr unsigned order = TestFixture::order;
 
     // Test Vertex range
     if constexpr (dim >= 1) {
-        constexpr size_t vertexStart = DOFHandler_type::template getEntityDOFStart<ippl::Vertex<dim>>();
+        constexpr size_t vertexStart =
+            DOFHandler_type::template getEntityDOFStart<ippl::Vertex<dim>>();
         constexpr size_t vertexEnd = DOFHandler_type::template getEntityDOFEnd<ippl::Vertex<dim>>();
 
         EXPECT_EQ(vertexStart, 0u);  // Vertices always start at 0
@@ -154,25 +153,33 @@ TYPED_TEST(DOFHandlerTest, EntityDOFRanges) {
     if constexpr (dim >= 1 && order >= 2) {
         if constexpr (dim == 1) {
             // 1D: 1 EdgeX with (Order-1) DOFs
-            constexpr size_t edgeStart = DOFHandler_type::template getEntityDOFStart<ippl::EdgeX<dim>>();
-            constexpr size_t edgeEnd = DOFHandler_type::template getEntityDOFEnd<ippl::EdgeX<dim>>();
+            constexpr size_t edgeStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::EdgeX<dim>>();
+            constexpr size_t edgeEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::EdgeX<dim>>();
             EXPECT_EQ(edgeStart, 2u);  // After 2 vertices
             EXPECT_EQ(edgeEnd - edgeStart, order - 1);
         } else if constexpr (dim == 2) {
             // 2D: 2 EdgeX and 2 EdgeY, each with (Order-1) DOFs
-            constexpr size_t edgeXStart = DOFHandler_type::template getEntityDOFStart<ippl::EdgeX<dim>>();
-            constexpr size_t edgeXEnd = DOFHandler_type::template getEntityDOFEnd<ippl::EdgeX<dim>>();
+            constexpr size_t edgeXStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::EdgeX<dim>>();
+            constexpr size_t edgeXEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::EdgeX<dim>>();
             EXPECT_EQ(edgeXStart, 4u);  // After 4 vertices
             EXPECT_EQ(edgeXEnd - edgeXStart, 2 * (order - 1));
 
-            constexpr size_t edgeYStart = DOFHandler_type::template getEntityDOFStart<ippl::EdgeY<dim>>();
-            constexpr size_t edgeYEnd = DOFHandler_type::template getEntityDOFEnd<ippl::EdgeY<dim>>();
+            constexpr size_t edgeYStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::EdgeY<dim>>();
+            constexpr size_t edgeYEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::EdgeY<dim>>();
             EXPECT_EQ(edgeYStart, edgeXEnd);
             EXPECT_EQ(edgeYEnd - edgeYStart, 2 * (order - 1));
         } else if constexpr (dim == 3) {
             // 3D: 4 edges per direction, each with (Order-1) DOFs
-            constexpr size_t edgeXStart = DOFHandler_type::template getEntityDOFStart<ippl::EdgeX<dim>>();
-            constexpr size_t edgeXEnd = DOFHandler_type::template getEntityDOFEnd<ippl::EdgeX<dim>>();
+            constexpr size_t edgeXStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::EdgeX<dim>>();
+            constexpr size_t edgeXEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::EdgeX<dim>>();
             EXPECT_EQ(edgeXStart, 8u);  // After 8 vertices
             EXPECT_EQ(edgeXEnd - edgeXStart, 4 * (order - 1));
         }
@@ -182,30 +189,38 @@ TYPED_TEST(DOFHandlerTest, EntityDOFRanges) {
     if constexpr (dim >= 2 && order >= 2) {
         if constexpr (dim == 2) {
             // 2D: 1 FaceXY with (Order-1)^2 DOFs
-            constexpr size_t faceStart = DOFHandler_type::template getEntityDOFStart<ippl::FaceXY<dim>>();
-            constexpr size_t faceEnd = DOFHandler_type::template getEntityDOFEnd<ippl::FaceXY<dim>>();
+            constexpr size_t faceStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::FaceXY<dim>>();
+            constexpr size_t faceEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::FaceXY<dim>>();
             // After 4 vertices + 4 edges
             EXPECT_EQ(faceStart, 4u + 4 * (order - 1));
             EXPECT_EQ(faceEnd - faceStart, (order - 1) * (order - 1));
         } else if constexpr (dim == 3) {
             // 3D: 2 faces per orientation, each with (Order-1)^2 DOFs
             // FaceXY
-            constexpr size_t faceXYStart = DOFHandler_type::template getEntityDOFStart<ippl::FaceXY<dim>>();
-            constexpr size_t faceXYEnd = DOFHandler_type::template getEntityDOFEnd<ippl::FaceXY<dim>>();
+            constexpr size_t faceXYStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::FaceXY<dim>>();
+            constexpr size_t faceXYEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::FaceXY<dim>>();
             // After 8 vertices + 12 edges
             EXPECT_EQ(faceXYStart, 8u + 12 * (order - 1));
             EXPECT_EQ(faceXYEnd - faceXYStart, 2 * (order - 1) * (order - 1));
 
             // FaceXZ
-            constexpr size_t faceXZStart = DOFHandler_type::template getEntityDOFStart<ippl::FaceXZ<dim>>();
-            constexpr size_t faceXZEnd = DOFHandler_type::template getEntityDOFEnd<ippl::FaceXZ<dim>>();
+            constexpr size_t faceXZStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::FaceXZ<dim>>();
+            constexpr size_t faceXZEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::FaceXZ<dim>>();
             // Start after FaceXY
             EXPECT_EQ(faceXZStart, faceXYEnd);
             EXPECT_EQ(faceXZEnd - faceXZStart, 2 * (order - 1) * (order - 1));
 
             // FaceYZ
-            constexpr size_t faceYZStart = DOFHandler_type::template getEntityDOFStart<ippl::FaceYZ<dim>>();
-            constexpr size_t faceYZEnd = DOFHandler_type::template getEntityDOFEnd<ippl::FaceYZ<dim>>();
+            constexpr size_t faceYZStart =
+                DOFHandler_type::template getEntityDOFStart<ippl::FaceYZ<dim>>();
+            constexpr size_t faceYZEnd =
+                DOFHandler_type::template getEntityDOFEnd<ippl::FaceYZ<dim>>();
             // Start after FaceXZ
             EXPECT_EQ(faceYZStart, faceXZEnd);
             EXPECT_EQ(faceYZEnd - faceYZStart, 2 * (order - 1) * (order - 1));
@@ -215,9 +230,9 @@ TYPED_TEST(DOFHandlerTest, EntityDOFRanges) {
 
 // Test element NDIndex conversion
 TYPED_TEST(DOFHandlerTest, ElementNDIndexConversion) {
-    auto& dofHandler = this->dofHandler;
+    auto& dofHandler       = this->dofHandler;
     constexpr unsigned dim = TestFixture::dim;
-    const auto& nPoints = this->nPoints;
+    const auto& nPoints    = this->nPoints;
 
     // Number of elements in each direction
     unsigned numElements = 1;
@@ -251,7 +266,7 @@ TYPED_TEST(DOFHandlerTest, ElementNDIndexConversion) {
 
         // Verify we can reconstruct the linear index
         size_t reconstructed = 0;
-        size_t stride = 1;
+        size_t stride        = 1;
         for (unsigned d = 0; d < dim; ++d) {
             reconstructed += ndIndex[d] * stride;
             stride *= ne[d];
@@ -262,9 +277,9 @@ TYPED_TEST(DOFHandlerTest, ElementNDIndexConversion) {
 
 // Test DOF mapping for specific elements
 TYPED_TEST(DOFHandlerTest, ElementDOFMapping) {
-    auto& dofHandler = this->dofHandler;
-    constexpr unsigned dim = TestFixture::dim;
-    constexpr unsigned order = TestFixture::order;
+    auto& dofHandler                  = this->dofHandler;
+    constexpr unsigned dim            = TestFixture::dim;
+    constexpr unsigned order          = TestFixture::order;
     constexpr unsigned dofsPerElement = TestFixture::DOFHandler_type::dofsPerElement;
 
     // Get mapping for element 0
@@ -272,7 +287,8 @@ TYPED_TEST(DOFHandlerTest, ElementDOFMapping) {
         auto mapping = dofHandler->getElementDOFMapping(localDOF);
 
         // Check that entity type index is in valid range
-        EXPECT_LT(mapping.entityTypeIndex, std::tuple_size<typename TestFixture::SpaceTraits::EntityTypes>::value);
+        EXPECT_LT(mapping.entityTypeIndex,
+                  std::tuple_size<typename TestFixture::SpaceTraits::EntityTypes>::value);
 
         // Check that entity local index is within bounds
         for (unsigned d = 0; d < dim; ++d) {
@@ -285,17 +301,20 @@ TYPED_TEST(DOFHandlerTest, ElementDOFMapping) {
         } else if constexpr (order >= 2 && dim == 1) {
             EXPECT_LT(mapping.entityLocalDOF, (order - 1));  // At most (Order-1) DOFs on 1D edge
         } else if constexpr (order >= 2 && dim == 2) {
-            EXPECT_LT(mapping.entityLocalDOF, (order - 1) * (order - 1));  // At most (Order-1)^2 on 2D faces
+            EXPECT_LT(mapping.entityLocalDOF,
+                      (order - 1) * (order - 1));  // At most (Order-1)^2 on 2D faces
         } else if constexpr (order >= 2 && dim == 3) {
-            EXPECT_LT(mapping.entityLocalDOF, (order - 1) * (order - 1) * (order - 1));  // At most (Order-1)^3 on 3D volumes
+            EXPECT_LT(
+                mapping.entityLocalDOF,
+                (order - 1) * (order - 1) * (order - 1));  // At most (Order-1)^3 on 3D volumes
         }
     }
 }
 
 // Test that vertex DOFs come first
 TYPED_TEST(DOFHandlerTest, VertexDOFsFirst) {
-    auto& dofHandler = this->dofHandler;
-    constexpr unsigned dim = TestFixture::dim;
+    auto& dofHandler               = this->dofHandler;
+    constexpr unsigned dim         = TestFixture::dim;
     constexpr unsigned numVertices = (1 << dim);
 
     // All DOFs should be vertex DOFs for Order 1
@@ -326,26 +345,27 @@ TYPED_TEST(DOFHandlerTest, CounterClockwiseVertexOrdering) {
         auto& dofHandler = this->dofHandler;
 
         // Expected counter-clockwise vertex positions: [0,0], [1,0], [1,1], [0,1]
-        std::array<std::array<size_t, 2>, 4> expectedOffsets = {{
-            {0, 0}, {1, 0}, {1, 1}, {0, 1}
-        }};
+        std::array<std::array<size_t, 2>, 4> expectedOffsets = {{{0, 0}, {1, 0}, {1, 1}, {0, 1}}};
 
         for (size_t v = 0; v < 4; ++v) {
             auto mapping = dofHandler->getElementDOFMapping(v);
             EXPECT_EQ(mapping.entityLocalIndex[0], expectedOffsets[v][0]);
             EXPECT_EQ(mapping.entityLocalIndex[1], expectedOffsets[v][1]);
         }
-    }
-    else if constexpr (TestFixture::dim == 3) {
+    } else if constexpr (TestFixture::dim == 3) {
         auto& dofHandler = this->dofHandler;
 
         // Expected counter-clockwise vertex positions
         // z=0 plane: [0,0,0], [1,0,0], [1,1,0], [0,1,0]
         // z=1 plane: [0,0,1], [1,0,1], [1,1,1], [0,1,1]
-        std::array<std::array<size_t, 3>, 8> expectedOffsets = {{
-            {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0},
-            {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}
-        }};
+        std::array<std::array<size_t, 3>, 8> expectedOffsets = {{{0, 0, 0},
+                                                                 {1, 0, 0},
+                                                                 {1, 1, 0},
+                                                                 {0, 1, 0},
+                                                                 {0, 0, 1},
+                                                                 {1, 0, 1},
+                                                                 {1, 1, 1},
+                                                                 {0, 1, 1}}};
 
         for (size_t v = 0; v < 8; ++v) {
             auto mapping = dofHandler->getElementDOFMapping(v);
@@ -358,7 +378,7 @@ TYPED_TEST(DOFHandlerTest, CounterClockwiseVertexOrdering) {
 
 // Test counter-clockwise edge ordering
 TYPED_TEST(DOFHandlerTest, CounterClockwiseEdgeOrdering) {
-    auto& dofHandler = this->dofHandler;
+    auto& dofHandler         = this->dofHandler;
     constexpr unsigned order = TestFixture::order;
 
     if constexpr (TestFixture::dim == 1 && order >= 2) {
@@ -367,22 +387,20 @@ TYPED_TEST(DOFHandlerTest, CounterClockwiseEdgeOrdering) {
 
         for (size_t localDOF = 0; localDOF < order - 1; ++localDOF) {
             size_t dofIndex = 2 + localDOF;  // After 2 vertex DOFs
-            auto mapping = dofHandler->getElementDOFMapping(dofIndex);
+            auto mapping    = dofHandler->getElementDOFMapping(dofIndex);
             EXPECT_EQ(mapping.entityLocalIndex[0], expectedOffsets[0]);
             EXPECT_EQ(mapping.entityLocalDOF, localDOF);
         }
     } else
 
-    if constexpr (TestFixture::dim == 2 && order >= 2) {
+        if constexpr (TestFixture::dim == 2 && order >= 2) {
         // Expected edge positions: EdgeX(0,0), EdgeX(0,1), EdgeY(0,0), EdgeY(1,0)
-        std::array<std::array<size_t, 2>, 4> expectedOffsets = {{
-            {0, 0}, {0, 1}, {0, 0}, {1, 0}
-        }};
+        std::array<std::array<size_t, 2>, 4> expectedOffsets = {{{0, 0}, {0, 1}, {0, 0}, {1, 0}}};
 
         for (size_t e = 0; e < 4; ++e) {
             for (size_t localDOF = 0; localDOF < order - 1; ++localDOF) {
                 size_t dofIndex = 4 + e * (order - 1) + localDOF;  // After 4 vertex DOFs
-                auto mapping = dofHandler->getElementDOFMapping(dofIndex);
+                auto mapping    = dofHandler->getElementDOFMapping(dofIndex);
                 EXPECT_EQ(mapping.entityLocalIndex[0], expectedOffsets[e][0]);
                 EXPECT_EQ(mapping.entityLocalIndex[1], expectedOffsets[e][1]);
                 EXPECT_EQ(mapping.entityLocalDOF, localDOF);
@@ -395,15 +413,24 @@ TYPED_TEST(DOFHandlerTest, CounterClockwiseEdgeOrdering) {
         // EdgeZ: (0,0,0), (1,0,0), (1,1,0), (0,1,0)
 
         std::array<std::array<size_t, 3>, 12> expectedOffsets = {{
-            {0, 0, 0}, {0, 1, 0}, {0, 1, 1}, {0, 0, 1},  // EdgeX
-            {0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1},  // EdgeY
-            {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}   // EdgeZ
+            {0, 0, 0},
+            {0, 1, 0},
+            {0, 1, 1},
+            {0, 0, 1},  // EdgeX
+            {0, 0, 0},
+            {1, 0, 0},
+            {1, 0, 1},
+            {0, 0, 1},  // EdgeY
+            {0, 0, 0},
+            {1, 0, 0},
+            {1, 1, 0},
+            {0, 1, 0}  // EdgeZ
         }};
 
         for (size_t e = 0; e < 12; ++e) {
             for (size_t localDOF = 0; localDOF < order - 1; ++localDOF) {
                 size_t dofIndex = 8 + e * (order - 1) + localDOF;  // After 8 vertex DOFs
-                auto mapping = dofHandler->getElementDOFMapping(dofIndex);
+                auto mapping    = dofHandler->getElementDOFMapping(dofIndex);
                 EXPECT_EQ(mapping.entityLocalIndex[0], expectedOffsets[e][0]);
                 EXPECT_EQ(mapping.entityLocalIndex[1], expectedOffsets[e][1]);
                 EXPECT_EQ(mapping.entityLocalIndex[2], expectedOffsets[e][2]);
@@ -415,8 +442,8 @@ TYPED_TEST(DOFHandlerTest, CounterClockwiseEdgeOrdering) {
 
 // Test face DOF ordering in 2D and 3D
 TYPED_TEST(DOFHandlerTest, FaceDOFOrdering) {
-    auto& dofHandler = this->dofHandler;
-    constexpr unsigned dim = TestFixture::dim;
+    auto& dofHandler         = this->dofHandler;
+    constexpr unsigned dim   = TestFixture::dim;
     constexpr unsigned order = TestFixture::order;
 
     if constexpr (dim == 2 && order >= 2) {
@@ -424,11 +451,11 @@ TYPED_TEST(DOFHandlerTest, FaceDOFOrdering) {
         std::array<size_t, 2> expectedOffsets = {0, 0};
 
         size_t faceStartIndex = 4 + 4 * (order - 1);  // After vertices and edges
-        size_t numFaceDOFs = (order - 1) * (order - 1);
+        size_t numFaceDOFs    = (order - 1) * (order - 1);
 
         for (size_t localDOF = 0; localDOF < numFaceDOFs; ++localDOF) {
             size_t dofIndex = faceStartIndex + localDOF;
-            auto mapping = dofHandler->getElementDOFMapping(dofIndex);
+            auto mapping    = dofHandler->getElementDOFMapping(dofIndex);
             EXPECT_EQ(mapping.entityLocalIndex[0], expectedOffsets[0]);
             EXPECT_EQ(mapping.entityLocalIndex[1], expectedOffsets[1]);
             EXPECT_EQ(mapping.entityLocalDOF, localDOF);
@@ -440,18 +467,21 @@ TYPED_TEST(DOFHandlerTest, FaceDOFOrdering) {
         // FacesYZ: (0,0,0), (1,0,0)
 
         std::array<std::array<size_t, 3>, 6> expectedOffsets = {{
-            {0, 0, 0}, {0, 0, 1},   // FacesXY
-            {0, 0, 0}, {0, 1, 0},   // FacesXZ
-            {0, 0, 0}, {1, 0, 0}    // FacesYZ
+            {0, 0, 0},
+            {0, 0, 1},  // FacesXY
+            {0, 0, 0},
+            {0, 1, 0},  // FacesXZ
+            {0, 0, 0},
+            {1, 0, 0}  // FacesYZ
         }};
 
         size_t faceStartIndex = 8 + 12 * (order - 1);  // After vertices and edges
-        size_t numFaceDOFs = (order - 1) * (order - 1);
+        size_t numFaceDOFs    = (order - 1) * (order - 1);
 
         for (unsigned f = 0; f < 6; ++f) {
             for (size_t localDOF = 0; localDOF < numFaceDOFs; ++localDOF) {
                 size_t dofIndex = faceStartIndex + f * (order - 1) * (order - 1) + localDOF;
-                auto mapping = dofHandler->getElementDOFMapping(dofIndex);
+                auto mapping    = dofHandler->getElementDOFMapping(dofIndex);
                 EXPECT_EQ(mapping.entityLocalIndex[0], expectedOffsets[f][0]);
                 EXPECT_EQ(mapping.entityLocalIndex[1], expectedOffsets[f][1]);
                 EXPECT_EQ(mapping.entityLocalIndex[2], expectedOffsets[f][2]);

@@ -6,10 +6,10 @@
 #ifndef IPPL_PCG_H
 #define IPPL_PCG_H
 
+#include "FEM/FEMContainer.h"
+#include "FEM/FEMVector.h"
 #include "Preconditioner.h"
 #include "SolverAlgorithm.h"
-#include "FEM/FEMVector.h"
-#include "FEM/FEMContainer.h"
 
 namespace ippl {
     template <typename OperatorRet, typename LowerRet, typename UpperRet, typename UpperLowerRet,
@@ -62,9 +62,8 @@ namespace ippl {
             // set in main
             [[maybe_unused]] int outer =
                 1,  // This is a dummy default parameter, actual default parameter should be
-            [[maybe_unused]] double omega =
-                1  // This is a dummy default parameter, actual default parameter should be
-                   // set in main
+            [[maybe_unused]] double omega = 1  // This is a dummy default parameter, actual default
+                                               // parameter should be set in main
         ) {}
         /*!
          * Query how many iterations were required to obtain the solution
@@ -157,12 +156,15 @@ namespace ippl {
         int iterations_m = 0;
     };
 
-
     template <typename OperatorRet, typename LowerRet, typename UpperRet, typename UpperLowerRet,
-              typename InverseDiagRet, typename DiagRet, typename T, unsigned Dim, typename EntityTypes, typename DOFNums>
-    class CG<OperatorRet, LowerRet, UpperRet, UpperLowerRet, InverseDiagRet, DiagRet, FEMContainer<T, Dim, EntityTypes, DOFNums>, FEMContainer<T, Dim, EntityTypes, DOFNums>>
-        : public SolverAlgorithm<FEMContainer<T, Dim, EntityTypes, DOFNums>, FEMContainer<T, Dim, EntityTypes, DOFNums>> {
-        using Base = SolverAlgorithm<FEMContainer<T, Dim, EntityTypes, DOFNums>, FEMContainer<T, Dim, EntityTypes, DOFNums>>;
+              typename InverseDiagRet, typename DiagRet, typename T, unsigned Dim,
+              typename EntityTypes, typename DOFNums>
+    class CG<OperatorRet, LowerRet, UpperRet, UpperLowerRet, InverseDiagRet, DiagRet,
+             FEMContainer<T, Dim, EntityTypes, DOFNums>, FEMContainer<T, Dim, EntityTypes, DOFNums>>
+        : public SolverAlgorithm<FEMContainer<T, Dim, EntityTypes, DOFNums>,
+                                 FEMContainer<T, Dim, EntityTypes, DOFNums>> {
+        using Base = SolverAlgorithm<FEMContainer<T, Dim, EntityTypes, DOFNums>,
+                                     FEMContainer<T, Dim, EntityTypes, DOFNums>>;
 
     public:
         using typename Base::lhs_type, typename Base::rhs_type;
@@ -207,9 +209,8 @@ namespace ippl {
             // set in main
             [[maybe_unused]] int outer =
                 1,  // This is a dummy default parameter, actual default parameter should be
-            [[maybe_unused]] double omega =
-                1  // This is a dummy default parameter, actual default parameter should be
-                   // set in main
+            [[maybe_unused]] double omega = 1  // This is a dummy default parameter, actual default
+                                               // parameter should be set in main
         ) {}
         /*!
          * Query how many iterations were required to obtain the solution
@@ -232,7 +233,7 @@ namespace ippl {
             lhs_type d(mesh, layout);
 
             auto lhsBCs = lhs.getFieldBC();
-            std::array<FieldBC, 2*Dim> bcTypes;
+            std::array<FieldBC, 2 * Dim> bcTypes;
 
             bool allFacesPeriodic = true;
             for (unsigned int i = 0; i < 2 * Dim; ++i) {
@@ -243,7 +244,7 @@ namespace ippl {
                 } else if (bcType & CONSTANT_FACE) {
                     // If the LHS has constant BCs, the residue is zero on the BCs
                     // Bitwise AND with CONSTANT_FACE will succeed for ZeroFace or ConstantFace
-                    bcTypes[i]            = ippl::ZERO_FACE;
+                    bcTypes[i]       = ippl::ZERO_FACE;
                     allFacesPeriodic = false;
                 } else {
                     throw IpplException("PCG::operator()",
@@ -276,7 +277,7 @@ namespace ippl {
                 // the correction does not have a significant effect on accuracy;
                 // in some implementations, the correction may be applied every few
                 // iterations to offset accumulated floating point errors
-                r      = r - alpha * q;
+                r = r - alpha * q;
 
                 delta0 = delta1;
                 delta1 = innerProduct(r, r);
@@ -302,11 +303,10 @@ namespace ippl {
         int iterations_m = 0;
     };
 
-
     template <typename OperatorRet, typename LowerRet, typename UpperRet, typename UpperLowerRet,
               typename InverseDiagRet, typename T>
-    class CG<OperatorRet, LowerRet, UpperRet, UpperLowerRet, InverseDiagRet, FEMVector<T>, FEMVector<T> >
-            : public SolverAlgorithm<FEMVector<T>, FEMVector<T>> {
+    class CG<OperatorRet, LowerRet, UpperRet, UpperLowerRet, InverseDiagRet, FEMVector<T>,
+             FEMVector<T>> : public SolverAlgorithm<FEMVector<T>, FEMVector<T>> {
         using Base = SolverAlgorithm<FEMVector<T>, FEMVector<T>>;
 
     public:
@@ -357,13 +357,12 @@ namespace ippl {
          * @return Iteration count of last solve
          */
         virtual int getIterationCount() { return iterations_m; }
-        
+
         virtual void operator()(lhs_type& lhs, rhs_type& rhs,
                                 const ParameterList& params) override {
-            
-            //constexpr unsigned Dim             = lhs_type::dim;
-            //typename lhs_type::Mesh_t mesh     = lhs.get_mesh();
-            //typename lhs_type::Layout_t layout = lhs.getLayout();
+            // constexpr unsigned Dim             = lhs_type::dim;
+            // typename lhs_type::Mesh_t mesh     = lhs.get_mesh();
+            // typename lhs_type::Layout_t layout = lhs.getLayout();
 
             iterations_m            = 0;
             const int maxIterations = params.get<int>("max_iterations");
@@ -371,23 +370,21 @@ namespace ippl {
             // Variable names mostly based on description in
             // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
             lhs_type r = lhs.deepCopy();
-            r = 0;
+            r          = 0;
             lhs_type d = lhs.deepCopy();
-            d = 0;
-            
-           
+            d          = 0;
+
             r = rhs - op_m(lhs);
             r.setHalo(0);
-            d = r; //.deepCopy();
-            //d.setFieldBC(bc);
+            d = r;  //.deepCopy();
+            // d.setFieldBC(bc);
             T delta1          = innerProduct(r, d);
             T delta0          = delta1;
             residueNorm       = std::sqrt(delta1);
             const T tolerance = params.get<T>("tolerance") * norm(rhs);
 
             lhs_type q = lhs.deepCopy();
-            q = 0;
-            
+            q          = 0;
 
             while (iterations_m < maxIterations && residueNorm > tolerance) {
                 q = op_m(d);
@@ -411,8 +408,6 @@ namespace ippl {
                 residueNorm = std::sqrt(delta1);
                 d           = r + beta * d;
                 ++iterations_m;
-
-                
             }
         }
 
@@ -423,7 +418,6 @@ namespace ippl {
         T residueNorm    = 0;
         int iterations_m = 0;
     };
-
 
     template <typename OperatorRet, typename LowerRet, typename UpperRet, typename UpperLowerRet,
               typename InverseDiagRet, typename DiagRet, typename FieldLHS,
@@ -445,7 +439,7 @@ namespace ippl {
         PCG()
             : CG<OperatorRet, LowerRet, UpperRet, UpperLowerRet, InverseDiagRet, DiagRet, FieldLHS,
                  FieldRHS>()
-            , preconditioner_m(nullptr){};
+            , preconditioner_m(nullptr) {};
 
         /*!
          * Sets the differential operator for the conjugate gradient algorithm
@@ -473,8 +467,9 @@ namespace ippl {
             // set in main
             double omega = 1.57079632679  // This is a dummy default parameter, actual default
             // parameter should be set in main
-            // default = pi/2 as this was found optimal during hyperparameter scan for test case 
-            // (see https://amas.web.psi.ch/people/aadelmann/ETH-Accel-Lecture-1/projectscompleted/cse/BSc-mbolliger.pdf)
+            // default = pi/2 as this was found optimal during hyperparameter scan for test case
+            // (see
+            // https://amas.web.psi.ch/people/aadelmann/ETH-Accel-Lecture-1/projectscompleted/cse/BSc-mbolliger.pdf)
             ) override {
             if (preconditioner_type == "jacobi") {
                 // Turn on damping parameter
@@ -504,8 +499,7 @@ namespace ippl {
                 preconditioner_m =
                     std::move(std::make_unique<
                               richardson_preconditioner_alt<FieldLHS, OperatorF, InverseDiagF>>(
-                        std::move(op), std::move(inverse_diagonal),
-                        richardson_iterations));
+                        std::move(op), std::move(inverse_diagonal), richardson_iterations));
             } else if (preconditioner_type == "gauss-seidel") {
                 preconditioner_m = std::move(
                     std::make_unique<gs_preconditioner<FieldLHS, LowerF, UpperF, InverseDiagF>>(
@@ -576,7 +570,7 @@ namespace ippl {
             this->residueNorm = Kokkos::sqrt(Kokkos::abs(delta1));
             const T tolerance = params.get<T>("tolerance") * this->residueNorm;
 
-            while (this->iterations_m < maxIterations && this->residueNorm > tolerance) {
+            while (this->iterations_m<maxIterations&& this->residueNorm> tolerance) {
                 q       = this->op_m(d);
                 T alpha = delta1 / innerProduct(d, q);
                 lhs     = lhs + alpha * d;

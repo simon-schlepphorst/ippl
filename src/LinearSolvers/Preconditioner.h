@@ -304,7 +304,7 @@ namespace ippl {
             for (unsigned int j = 0; j < innerloops_m; ++j) {
                 ULg_m = upper_and_lower_m(g);
                 g     = r - ULg_m;
-         
+
                 // The inverse diagonal is applied to the
                 // vector itself to return the result usually.
                 // However, the operator for FEM already
@@ -349,10 +349,10 @@ namespace ippl {
         using layout_type             = typename Field::Layout_t;
 
         richardson_preconditioner_alt(OperatorF&& op, InvDiagF&& inverse_diagonal,
-                                  unsigned innerloops = 5)
+                                      unsigned innerloops = 5)
             : preconditioner<Field>("Richardson_alt")
             , innerloops_m(innerloops) {
-            op_m  = std::move(op);
+            op_m               = std::move(op);
             inverse_diagonal_m = std::move(inverse_diagonal);
         }
 
@@ -361,12 +361,12 @@ namespace ippl {
             layout_type& layout = r.getLayout();
             Field g(mesh, layout);
             Field g_old(mesh, layout);
-            g = 0;
+            g     = 0;
             g_old = 0;
 
             for (unsigned int j = 0; j < innerloops_m; ++j) {
                 Ag_m = op_m(g);
-                g     = r - Ag_m;
+                g    = r - Ag_m;
 
                 // The inverse diagonal is applied to the
                 // vector itself to return the result usually.

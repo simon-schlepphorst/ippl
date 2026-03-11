@@ -21,7 +21,8 @@ namespace ippl {
         }
 
         template <typename T, unsigned Dim, class... ViewArgs>
-        void HaloCells<T, Dim, ViewArgs...>::accumulateHalo_noghost(view_type& view, Layout_t* layout, int nghost) {
+        void HaloCells<T, Dim, ViewArgs...>::accumulateHalo_noghost(view_type& view,
+                                                                    Layout_t* layout, int nghost) {
             exchangeBoundaries<lhs_plus_assign>(view, layout, HALO_TO_INTERNAL_NOGHOST, nghost);
         }
         template <typename T, unsigned Dim, class... ViewArgs>
@@ -30,15 +31,17 @@ namespace ippl {
         }
 
         template <typename T, unsigned Dim, class... ViewArgs>
-        void HaloCells<T, Dim, ViewArgs...>::accumulateHalo(view_type& view, Layout_t* layout,
-                                                            const std::array<bool, Dim>& exchangeDir) {
+        void HaloCells<T, Dim, ViewArgs...>::accumulateHalo(
+            view_type& view, Layout_t* layout, const std::array<bool, Dim>& exchangeDir) {
             exchangeBoundaries<lhs_plus_assign>(view, layout, HALO_TO_INTERNAL, exchangeDir);
         }
 
         template <typename T, unsigned Dim, class... ViewArgs>
-        void HaloCells<T, Dim, ViewArgs...>::accumulateHalo_noghost(view_type& view, Layout_t* layout,
-                                                                     const std::array<bool, Dim>& exchangeDir, int nghost) {
-            exchangeBoundaries<lhs_plus_assign>(view, layout, HALO_TO_INTERNAL_NOGHOST, exchangeDir, nghost);
+        void HaloCells<T, Dim, ViewArgs...>::accumulateHalo_noghost(
+            view_type& view, Layout_t* layout, const std::array<bool, Dim>& exchangeDir,
+            int nghost) {
+            exchangeBoundaries<lhs_plus_assign>(view, layout, HALO_TO_INTERNAL_NOGHOST, exchangeDir,
+                                                nghost);
         }
 
         template <typename T, unsigned Dim, class... ViewArgs>
@@ -50,7 +53,6 @@ namespace ippl {
         template <typename T, unsigned Dim, class... ViewArgs>
         bool HaloCells<T, Dim, ViewArgs...>::shouldExchangeWithNeighbor(
             size_t neighborIndex, const std::array<bool, Dim>& exchangeDir) const {
-
             // Decode the neighbor index to determine which dimensions it differs in
             // The neighbor index is encoded as a base-3 number where:
             // 0 = lower boundary, 1 = upper boundary, 2 = interior (IS_PARALLEL)
@@ -93,7 +95,7 @@ namespace ippl {
             // needed for the NOGHOST approach - we want to remove the ghost
             // cells on the boundaries of the global domain from the halo
             // exchange when we set HALO_TO_INTERNAL_NOGHOST
-            const auto domain = layout->getDomain();
+            const auto domain    = layout->getDomain();
             const auto& ldomains = layout->getHostLocalDomains();
 
             size_t totalRequests = 0;
@@ -101,7 +103,7 @@ namespace ippl {
                 totalRequests += componentNeighbors.size();
             }
 
-            int me=Comm->rank();
+            int me = Comm->rank();
 
             using memory_space = typename view_type::memory_space;
             using buffer_type  = mpi::Communicator::buffer_type<memory_space>;
@@ -127,10 +129,9 @@ namespace ippl {
                         range = recvRanges[index][i];
 
                         for (size_t j = 0; j < Dim; ++j) {
-                            bool isLower = ((range.lo[j] + ldomains[me][j].first()
-                                            - nghost) == domain[j].min());
-                            bool isUpper = ((range.hi[j] - 1 + 
-                                            ldomains[me][j].first() - nghost)
+                            bool isLower = ((range.lo[j] + ldomains[me][j].first() - nghost)
+                                            == domain[j].min());
+                            bool isUpper = ((range.hi[j] - 1 + ldomains[me][j].first() - nghost)
                                             == domain[j].max());
                             range.lo[j] += isLower * (nghost);
                             range.hi[j] -= isUpper * (nghost);
@@ -163,10 +164,9 @@ namespace ippl {
                         range = sendRanges[index][i];
 
                         for (size_t j = 0; j < Dim; ++j) {
-                            bool isLower = ((range.lo[j] + ldomains[me][j].first()
-                                            - nghost) == domain[j].min());
-                            bool isUpper = ((range.hi[j] - 1 +
-                                            ldomains[me][j].first() - nghost)
+                            bool isLower = ((range.lo[j] + ldomains[me][j].first() - nghost)
+                                            == domain[j].min());
+                            bool isUpper = ((range.hi[j] - 1 + ldomains[me][j].first() - nghost)
                                             == domain[j].max());
                             range.lo[j] += isLower * (nghost);
                             range.hi[j] -= isUpper * (nghost);
@@ -195,10 +195,9 @@ namespace ippl {
 
         template <typename T, unsigned Dim, class... ViewArgs>
         template <class Op>
-        void HaloCells<T, Dim, ViewArgs...>::exchangeBoundaries(view_type& view, Layout_t* layout,
-                                                                SendOrder order,
-                                                                const std::array<bool, Dim>& exchangeDir,
-                                                                int nghost) {
+        void HaloCells<T, Dim, ViewArgs...>::exchangeBoundaries(
+            view_type& view, Layout_t* layout, SendOrder order,
+            const std::array<bool, Dim>& exchangeDir, int nghost) {
             using neighbor_list = typename Layout_t::neighbor_list;
             using range_list    = typename Layout_t::neighbor_range_list;
 
@@ -220,11 +219,11 @@ namespace ippl {
             // needed for the NOGHOST approach - we want to remove the ghost
             // cells on the boundaries of the global domain from the halo
             // exchange when we set HALO_TO_INTERNAL_NOGHOST
-            const auto domain = layout->getDomain();
+            const auto domain    = layout->getDomain();
             const auto& ldomains = layout->getHostLocalDomains();
 
             // Count requests only for neighbors we'll actually exchange with
-            size_t totalRequests = 0;
+            size_t totalRequests       = 0;
             constexpr size_t cubeCount = detail::countHypercubes(Dim) - 1;
             for (size_t index = 0; index < cubeCount; index++) {
                 if (shouldExchangeWithNeighbor(index, exchangeDir)) {
@@ -261,12 +260,11 @@ namespace ippl {
                         range = sendRanges[index][i];
                     } else if (order == HALO_TO_INTERNAL_NOGHOST) {
                         range = recvRanges[index][i];
-                        
+
                         for (size_t j = 0; j < Dim; ++j) {
-                            bool isLower = ((range.lo[j] + ldomains[me][j].first()
-                                            - nghost) == domain[j].min());
-                            bool isUpper = ((range.hi[j] - 1 +
-                                            ldomains[me][j].first() - nghost)
+                            bool isLower = ((range.lo[j] + ldomains[me][j].first() - nghost)
+                                            == domain[j].min());
+                            bool isUpper = ((range.hi[j] - 1 + ldomains[me][j].first() - nghost)
                                             == domain[j].max());
                             range.lo[j] += isLower * (nghost);
                             range.hi[j] -= isUpper * (nghost);
@@ -304,10 +302,9 @@ namespace ippl {
                         range = sendRanges[index][i];
 
                         for (size_t j = 0; j < Dim; ++j) {
-                            bool isLower = ((range.lo[j] + ldomains[me][j].first()
-                                            - nghost) == domain[j].min());
-                            bool isUpper = ((range.hi[j] - 1 +
-                                            ldomains[me][j].first() - nghost)
+                            bool isLower = ((range.lo[j] + ldomains[me][j].first() - nghost)
+                                            == domain[j].min());
+                            bool isUpper = ((range.hi[j] - 1 + ldomains[me][j].first() - nghost)
                                             == domain[j].max());
                             range.lo[j] += isLower * (nghost);
                             range.hi[j] -= isUpper * (nghost);

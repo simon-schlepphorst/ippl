@@ -26,8 +26,9 @@ void runLagrangeSpaceTest() {
     isParallel.fill(true);
     ippl::FieldLayout<Dim> layout(MPI_COMM_WORLD, meshIndex, isParallel);
 
-    using DOFHandler_t = ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
-    using FieldType    = typename DOFHandler_t::FEMContainer_t;
+    using DOFHandler_t =
+        ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
+    using FieldType = typename DOFHandler_t::FEMContainer_t;
 
     // Reference element
     ElementType quad_element;
@@ -40,13 +41,15 @@ void runLagrangeSpaceTest() {
         lagrange_space(mesh, quad_element, midpoint_quadrature, layout);
 
     // Calculate number of DOFs per element type for 2D quadrilateral
-    const unsigned number_of_local_vertices  = 4;  // 4 vertices for quad
+    const unsigned number_of_local_vertices  = 4;                // 4 vertices for quad
     const unsigned number_of_local_edge_dofs = 4 * (Order - 1);  // 4 edges with (Order-1) DOFs each
     const unsigned number_of_local_face_dofs = (Order - 1) * (Order - 1);  // interior face DOFs
-    const unsigned total_local_dofs = number_of_local_vertices + number_of_local_edge_dofs + number_of_local_face_dofs;
+    const unsigned total_local_dofs =
+        number_of_local_vertices + number_of_local_edge_dofs + number_of_local_face_dofs;
 
     // Print the values for the local basis functions
-    const std::string local_basis_filename = "2D_lagrange_local_basis_order" + std::to_string(Order) + ".csv";
+    const std::string local_basis_filename =
+        "2D_lagrange_local_basis_order" + std::to_string(Order) + ".csv";
     std::cout << "Writing local basis function to " << local_basis_filename << "\n";
     std::ofstream local_basis_out(local_basis_filename, std::ios::out);
 
@@ -54,10 +57,12 @@ void runLagrangeSpaceTest() {
     for (unsigned i = 0; i < number_of_local_vertices; ++i) {
         local_basis_out << ",v_" << i;
     }
-    for (unsigned i = number_of_local_vertices; i < number_of_local_vertices + number_of_local_edge_dofs; ++i) {
+    for (unsigned i = number_of_local_vertices;
+         i < number_of_local_vertices + number_of_local_edge_dofs; ++i) {
         local_basis_out << ",e_" << i;
     }
-    for (unsigned i = number_of_local_vertices + number_of_local_edge_dofs; i < total_local_dofs; ++i) {
+    for (unsigned i = number_of_local_vertices + number_of_local_edge_dofs; i < total_local_dofs;
+         ++i) {
         local_basis_out << ",f_" << i;
     }
     local_basis_out << "\n";
@@ -66,8 +71,7 @@ void runLagrangeSpaceTest() {
         for (double y = 0.0; y <= 1.0; y += dx) {
             local_basis_out << x << "," << y;
             for (unsigned i = 0; i < total_local_dofs; ++i) {
-                local_basis_out << ","
-                                << lagrange_space.evaluateRefElementShapeFunction(i, {x, y});
+                local_basis_out << "," << lagrange_space.evaluateRefElementShapeFunction(i, {x, y});
             }
             local_basis_out << "\n";
         }

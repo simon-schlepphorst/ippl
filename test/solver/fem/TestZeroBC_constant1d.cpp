@@ -9,22 +9,22 @@
 // This is only 1D!
 //
 // The test prints out the relative error as we refine
-// the mesh spacing i.e. it is a convergence study. 
-// The order of convergence should be 2. 
+// the mesh spacing i.e. it is a convergence study.
+// The order of convergence should be 2.
 //
 // Usage:
 //    ./TestZeroBC_constant1d --info 5
 
 #include "Ippl.h"
 
+#include "FEM/DOFLocations.h"
 #include "Meshes/Centering.h"
 #include "PoissonSolvers/FEMPoissonSolver.h"
-#include "FEM/DOFLocations.h"
 
 template <typename T, unsigned Dim>
 struct AnalyticSol {
     KOKKOS_FUNCTION const T operator()(ippl::Vector<T, Dim> x_vec) const {
-        T val = 1.0 - (x_vec[0]*x_vec[0]);
+        T val = 1.0 - (x_vec[0] * x_vec[0]);
         return val;
     }
 };
@@ -32,7 +32,6 @@ struct AnalyticSol {
 template <typename T, unsigned Dim, unsigned Order, unsigned QuadNumNodes>
 void testFEMSolver(const unsigned& numNodesPerDim, const T& domain_start = 0.0,
                    const T& domain_end = 1.0) {
-    
     // start the timer
     static IpplTimings::TimerRef initTimer = IpplTimings::getTimer("initTest");
     IpplTimings::startTimer(initTimer);
@@ -40,10 +39,11 @@ void testFEMSolver(const unsigned& numNodesPerDim, const T& domain_start = 0.0,
     Inform m("");
     Inform msg2all("", INFORM_ALL_NODES);
 
-    using Mesh_t        = ippl::UniformCartesian<T, Dim>;
-    using DOFHandler_t  = ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
-    using Field_t       = typename DOFHandler_t::FEMContainer_t;
-    using BCTypes_t      = std::array<ippl::FieldBC, 2*Dim>;
+    using Mesh_t = ippl::UniformCartesian<T, Dim>;
+    using DOFHandler_t =
+        ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
+    using Field_t   = typename DOFHandler_t::FEMContainer_t;
+    using BCTypes_t = std::array<ippl::FieldBC, 2 * Dim>;
 
     const unsigned numCellsPerDim = numNodesPerDim - 1;
     const unsigned numGhosts      = 1;
@@ -123,7 +123,6 @@ int main(int argc, char* argv[]) {
         msg << std::setw(25) << "Residue";
         msg << std::setw(15) << "Iterations";
         msg << endl;
-
 
         // Test first order with multiple mesh sizes
         // Using 2p+3 quadrature points: 2(1)+3 = 5

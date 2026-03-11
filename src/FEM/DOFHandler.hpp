@@ -13,7 +13,8 @@ namespace ippl {
     }
 
     template <typename T, typename SpaceTraits_>
-    DOFHandler<T, SpaceTraits_>::DOFHandler(Mesh_t& mesh, const Layout_t& layout) : mesh_m(&mesh) {
+    DOFHandler<T, SpaceTraits_>::DOFHandler(Mesh_t& mesh, const Layout_t& layout)
+        : mesh_m(&mesh) {
         initialize(mesh, layout);
     }
 
@@ -31,9 +32,8 @@ namespace ippl {
         for (unsigned d = 0; d < Dim; ++d) {
             elementDomain[d] = elementDomain[d].cut(1);
         }
-        auto elementLayout = SubFieldLayout<Dim>(layout.comm, layout.getDomain(),
-                                               elementDomain, layout.isParallel(),
-                                               layout.isAllPeriodic_m);
+        auto elementLayout = SubFieldLayout<Dim>(layout.comm, layout.getDomain(), elementDomain,
+                                                 layout.isParallel(), layout.isAllPeriodic_m);
 
         lElemDom_m = elementLayout.getLocalNDIndex();
 
@@ -51,9 +51,10 @@ namespace ippl {
         // Deep copy from host to device
         Kokkos::deep_copy(dofMappingTable_m, dofMappingTable_h);
     }
-    
+
     template <typename T, typename SpaceTraits_>
-    void DOFHandler<T, SpaceTraits_>::fillLagrangeDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
+    void DOFHandler<T, SpaceTraits_>::fillLagrangeDOFMappingTable(
+        Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
         size_t dofIndex = 0;
 
         // For Lagrange elements, DOFs are ordered as:
@@ -62,51 +63,52 @@ namespace ippl {
 
         // Helper arrays for counter-clockwise numbering
         // 2D vertices (counter-clockwise starting bottom-left): 0:[0,0], 1:[1,0], 2:[1,1], 3:[0,1]
-        constexpr Kokkos::Array<Kokkos::Array<size_t, 2>, 4> vertex2DOffsets = {{
-            {0, 0}, {1, 0}, {1, 1}, {0, 1}
-        }};
+        constexpr Kokkos::Array<Kokkos::Array<size_t, 2>, 4> vertex2DOffsets = {
+            {{0, 0}, {1, 0}, {1, 1}, {0, 1}}};
 
         // 3D vertices (counter-clockwise in XY at z=0, then z=1)
         constexpr Kokkos::Array<Kokkos::Array<size_t, 3>, 8> vertex3DOffsets = {{
-            {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0},  // z=0 plane
-            {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}   // z=1 plane
+            {0, 0, 0},
+            {1, 0, 0},
+            {1, 1, 0},
+            {0, 1, 0},  // z=0 plane
+            {0, 0, 1},
+            {1, 0, 1},
+            {1, 1, 1},
+            {0, 1, 1}  // z=1 plane
         }};
 
         // 2D EdgeX (horizontal, counter-clockwise): 0:[0,0], 1:[0,1]
-        constexpr Kokkos::Array<Kokkos::Array<size_t, 2>, 2> edge2DXOffsets = {{
-            {0, 0}, {0, 1}
-        }};
+        constexpr Kokkos::Array<Kokkos::Array<size_t, 2>, 2> edge2DXOffsets = {{{0, 0}, {0, 1}}};
 
         // 2D EdgeY (vertical, counter-clockwise): 0:[0,0], 1:[1,0]
-        constexpr Kokkos::Array<Kokkos::Array<size_t, 2>, 2> edge2DYOffsets = {{
-            {0, 0}, {1, 0}
-        }};
+        constexpr Kokkos::Array<Kokkos::Array<size_t, 2>, 2> edge2DYOffsets = {{{0, 0}, {1, 0}}};
 
-        // 3D EdgeX (parallel to X, counter-clockwise in YZ): 0:[0,0,0], 1:[0,1,0], 2:[0,1,1], 3:[0,0,1]
-        constexpr Kokkos::Array<Kokkos::Array<size_t, 3>, 4> edge3DXOffsets = {{
-            {0, 0, 0}, {0, 1, 0}, {0, 1, 1}, {0, 0, 1}
-        }};
+        // 3D EdgeX (parallel to X, counter-clockwise in YZ): 0:[0,0,0], 1:[0,1,0], 2:[0,1,1],
+        // 3:[0,0,1]
+        constexpr Kokkos::Array<Kokkos::Array<size_t, 3>, 4> edge3DXOffsets = {
+            {{0, 0, 0}, {0, 1, 0}, {0, 1, 1}, {0, 0, 1}}};
 
-        // 3D EdgeY (parallel to Y, counter-clockwise in XZ): 0:[0,0,0], 1:[1,0,0], 2:[1,0,1], 3:[0,0,1]
-        constexpr Kokkos::Array<Kokkos::Array<size_t, 3>, 4> edge3DYOffsets = {{
-            {0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}
-        }};
+        // 3D EdgeY (parallel to Y, counter-clockwise in XZ): 0:[0,0,0], 1:[1,0,0], 2:[1,0,1],
+        // 3:[0,0,1]
+        constexpr Kokkos::Array<Kokkos::Array<size_t, 3>, 4> edge3DYOffsets = {
+            {{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}};
 
-        // 3D EdgeZ (parallel to Z, counter-clockwise in XY): 0:[0,0,0], 1:[1,0,0], 2:[1,1,0], 3:[0,1,0]
-        constexpr Kokkos::Array<Kokkos::Array<size_t, 3>, 4> edge3DZOffsets = {{
-            {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}
-        }};
+        // 3D EdgeZ (parallel to Z, counter-clockwise in XY): 0:[0,0,0], 1:[1,0,0], 2:[1,1,0],
+        // 3:[0,1,0]
+        constexpr Kokkos::Array<Kokkos::Array<size_t, 3>, 4> edge3DZOffsets = {
+            {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}}};
 
         // Vertex DOFs
-        constexpr size_t verticesPerElement = (1 << Dim); // 2^Dim
+        constexpr size_t verticesPerElement = (1 << Dim);  // 2^Dim
         if constexpr (TagIndex<EntityTypes>::template contains<Vertex<Dim>>()) {
             constexpr size_t vertexTypeIndex = TagIndex<EntityTypes>::template index<Vertex<Dim>>();
-            constexpr size_t vertexDOFCount = SpaceTraits::template entityDOFCount<Vertex<Dim>>();
+            constexpr size_t vertexDOFCount  = SpaceTraits::template entityDOFCount<Vertex<Dim>>();
 
             for (size_t v = 0; v < verticesPerElement; ++v) {
                 indices_t offset;
                 if constexpr (Dim == 1) {
-                    offset[0] = v; // Simple: 0 or 1
+                    offset[0] = v;  // Simple: 0 or 1
                 } else if constexpr (Dim == 2) {
                     offset[0] = vertex2DOffsets[v][0];
                     offset[1] = vertex2DOffsets[v][1];
@@ -127,8 +129,8 @@ namespace ippl {
         // X-oriented edges
         if constexpr (TagIndex<EntityTypes>::template contains<EdgeX<Dim>>()) {
             constexpr size_t edgeXTypeIndex = TagIndex<EntityTypes>::template index<EdgeX<Dim>>();
-            constexpr size_t edgeXDOFCount = SpaceTraits::template entityDOFCount<EdgeX<Dim>>();
-            constexpr size_t numEdgesX = (Dim == 1) ? 1 : ((Dim == 2) ? 2 : 4);
+            constexpr size_t edgeXDOFCount  = SpaceTraits::template entityDOFCount<EdgeX<Dim>>();
+            constexpr size_t numEdgesX      = (Dim == 1) ? 1 : ((Dim == 2) ? 2 : 4);
 
             for (size_t e = 0; e < numEdgesX; ++e) {
                 indices_t offset;
@@ -154,9 +156,10 @@ namespace ippl {
         // Y-oriented edges (2D and 3D)
         if constexpr (Dim >= 2) {
             if constexpr (TagIndex<EntityTypes>::template contains<EdgeY<Dim>>()) {
-                constexpr size_t edgeYTypeIndex = TagIndex<EntityTypes>::template index<EdgeY<Dim>>();
+                constexpr size_t edgeYTypeIndex =
+                    TagIndex<EntityTypes>::template index<EdgeY<Dim>>();
                 constexpr size_t edgeYDOFCount = SpaceTraits::template entityDOFCount<EdgeY<Dim>>();
-                constexpr size_t numEdgesY = (Dim == 2) ? 2 : 4;
+                constexpr size_t numEdgesY     = (Dim == 2) ? 2 : 4;
 
                 for (size_t e = 0; e < numEdgesY; ++e) {
                     indices_t offset;
@@ -179,7 +182,8 @@ namespace ippl {
         // Z-oriented edges (3D only)
         if constexpr (Dim == 3) {
             if constexpr (TagIndex<EntityTypes>::template contains<EdgeZ<Dim>>()) {
-                constexpr size_t edgeZTypeIndex = TagIndex<EntityTypes>::template index<EdgeZ<Dim>>();
+                constexpr size_t edgeZTypeIndex =
+                    TagIndex<EntityTypes>::template index<EdgeZ<Dim>>();
                 constexpr size_t edgeZDOFCount = SpaceTraits::template entityDOFCount<EdgeZ<Dim>>();
 
                 for (size_t e = 0; e < 4; ++e) {
@@ -199,8 +203,10 @@ namespace ippl {
         if constexpr (Dim >= 2) {
             // FaceXY (in 2D: the element itself, in 3D: XY-plane faces)
             if constexpr (TagIndex<EntityTypes>::template contains<FaceXY<Dim>>()) {
-                constexpr size_t faceXYTypeIndex = TagIndex<EntityTypes>::template index<FaceXY<Dim>>();
-                constexpr size_t faceXYDOFCount = SpaceTraits::template entityDOFCount<FaceXY<Dim>>();
+                constexpr size_t faceXYTypeIndex =
+                    TagIndex<EntityTypes>::template index<FaceXY<Dim>>();
+                constexpr size_t faceXYDOFCount =
+                    SpaceTraits::template entityDOFCount<FaceXY<Dim>>();
                 constexpr size_t numFacesXY = (Dim == 2) ? 1 : 2;
 
                 for (size_t f = 0; f < numFacesXY; ++f) {
@@ -208,7 +214,7 @@ namespace ippl {
                     offset[0] = 0;
                     offset[1] = 0;
                     if constexpr (Dim == 3) {
-                        offset[2] = f; // FaceXY 0:[0,0,0], FaceXY 1:[0,0,1]
+                        offset[2] = f;  // FaceXY 0:[0,0,0], FaceXY 1:[0,0,1]
                     }
                     for (size_t localDOF = 0; localDOF < faceXYDOFCount; ++localDOF) {
                         hostTable(dofIndex) = {faceXYTypeIndex, offset, localDOF};
@@ -220,13 +226,15 @@ namespace ippl {
             // FaceXZ (3D only)
             if constexpr (Dim == 3) {
                 if constexpr (TagIndex<EntityTypes>::template contains<FaceXZ<Dim>>()) {
-                    constexpr size_t faceXZTypeIndex = TagIndex<EntityTypes>::template index<FaceXZ<Dim>>();
-                    constexpr size_t faceXZDOFCount = SpaceTraits::template entityDOFCount<FaceXZ<Dim>>();
+                    constexpr size_t faceXZTypeIndex =
+                        TagIndex<EntityTypes>::template index<FaceXZ<Dim>>();
+                    constexpr size_t faceXZDOFCount =
+                        SpaceTraits::template entityDOFCount<FaceXZ<Dim>>();
 
                     for (size_t f = 0; f < 2; ++f) {
                         indices_t offset;
                         offset[0] = 0;
-                        offset[1] = f; // FaceXZ 0:[0,0,0], FaceXZ 1:[0,1,0]
+                        offset[1] = f;  // FaceXZ 0:[0,0,0], FaceXZ 1:[0,1,0]
                         offset[2] = 0;
                         for (size_t localDOF = 0; localDOF < faceXZDOFCount; ++localDOF) {
                             hostTable(dofIndex) = {faceXZTypeIndex, offset, localDOF};
@@ -239,12 +247,14 @@ namespace ippl {
             // FaceYZ (3D only)
             if constexpr (Dim == 3) {
                 if constexpr (TagIndex<EntityTypes>::template contains<FaceYZ<Dim>>()) {
-                    constexpr size_t faceYZTypeIndex = TagIndex<EntityTypes>::template index<FaceYZ<Dim>>();
-                    constexpr size_t faceYZDOFCount = SpaceTraits::template entityDOFCount<FaceYZ<Dim>>();
+                    constexpr size_t faceYZTypeIndex =
+                        TagIndex<EntityTypes>::template index<FaceYZ<Dim>>();
+                    constexpr size_t faceYZDOFCount =
+                        SpaceTraits::template entityDOFCount<FaceYZ<Dim>>();
 
                     for (size_t f = 0; f < 2; ++f) {
                         indices_t offset;
-                        offset[0] = f; // FaceYZ 0:[0,0,0], FaceYZ 1:[1,0,0]
+                        offset[0] = f;  // FaceYZ 0:[0,0,0], FaceYZ 1:[1,0,0]
                         offset[1] = 0;
                         offset[2] = 0;
                         for (size_t localDOF = 0; localDOF < faceYZDOFCount; ++localDOF) {
@@ -259,8 +269,10 @@ namespace ippl {
         // Volume DOFs (3D only)
         if constexpr (Dim == 3) {
             if constexpr (TagIndex<EntityTypes>::template contains<Hexahedron<Dim>>()) {
-                constexpr size_t hexTypeIndex = TagIndex<EntityTypes>::template index<Hexahedron<Dim>>();
-                constexpr size_t hexDOFCount = SpaceTraits::template entityDOFCount<Hexahedron<Dim>>();
+                constexpr size_t hexTypeIndex =
+                    TagIndex<EntityTypes>::template index<Hexahedron<Dim>>();
+                constexpr size_t hexDOFCount =
+                    SpaceTraits::template entityDOFCount<Hexahedron<Dim>>();
 
                 indices_t offset;
                 offset[0] = 0;
@@ -273,9 +285,10 @@ namespace ippl {
             }
         }
     }
-        
+
     template <typename T, typename SpaceTraits_>
-    void DOFHandler<T, SpaceTraits_>::fillNedelecDOFMappingTable(Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
+    void DOFHandler<T, SpaceTraits_>::fillNedelecDOFMappingTable(
+        Kokkos::View<DOFMapping*>::HostMirror& hostTable) const {
         // TODO implement Nedelec DOF mapping table filling
     }
 
@@ -312,7 +325,8 @@ namespace ippl {
 
     template <typename T, typename SpaceTraits_>
     KOKKOS_FUNCTION typename DOFHandler<T, SpaceTraits_>::indices_t
-    DOFHandler<T, SpaceTraits_>::getLocalElementNDIndex(const size_t& elementIndex, int nghost) const {
+    DOFHandler<T, SpaceTraits_>::getLocalElementNDIndex(const size_t& elementIndex,
+                                                        int nghost) const {
         // Convert linear element index to global NDIndex using row-major ordering
         indices_t ndIndex = getElementNDIndex(elementIndex);
 
@@ -325,9 +339,9 @@ namespace ippl {
     }
 
     template <typename T, typename SpaceTraits_>
-    KOKKOS_FUNCTION bool
-    DOFHandler<T, SpaceTraits_>::isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF,
-                                                   const unsigned& dim) const {
+    KOKKOS_FUNCTION bool DOFHandler<T, SpaceTraits_>::isDOFOnBoundary(const size_t& elementIndex,
+                                                                      const size_t& localDOF,
+                                                                      const unsigned& dim) const {
         // Get the DOF mapping to find which entity this DOF belongs to
         DOFMapping dofMap = getElementDOFMapping(localDOF);
 
@@ -338,8 +352,11 @@ namespace ippl {
 
         // Unroll at compile time over all entity types
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            ((dofMap.entityTypeIndex == Is ?
-                (entityExtendsInDim = std::tuple_element_t<Is, EntityTypes>{}.getDir()[dim], true) : false), ...);
+            ((dofMap.entityTypeIndex == Is
+                  ? (entityExtendsInDim = std::tuple_element_t<Is, EntityTypes>{}.getDir()[dim],
+                     true)
+                  : false),
+             ...);
         }(std::make_index_sequence<numEntityTypes>{});
 
         // If entity extends in this dimension, it cannot be on a boundary perpendicular to it
@@ -360,8 +377,8 @@ namespace ippl {
     }
 
     template <typename T, typename SpaceTraits_>
-    KOKKOS_FUNCTION bool
-    DOFHandler<T, SpaceTraits_>::isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF) const {
+    KOKKOS_FUNCTION bool DOFHandler<T, SpaceTraits_>::isDOFOnBoundary(
+        const size_t& elementIndex, const size_t& localDOF) const {
         bool isOnBoundary = false;
 
         // Check all dimensions using bitwise OR to avoid branching
@@ -376,7 +393,7 @@ namespace ippl {
     Kokkos::View<size_t*> DOFHandler<T, SpaceTraits_>::getElementIndices() const {
         if (mesh_m == nullptr) {
             throw IpplException("DOFHandler::getElementIndices",
-                              "DOFHandler not initialized. Call initialize() first.");
+                                "DOFHandler not initialized. Call initialize() first.");
         }
 
         unsigned localElementCount = lElemDom_m.size();
@@ -384,21 +401,20 @@ namespace ippl {
         Kokkos::View<size_t*> localElementIndices("localElementIndices", localElementCount);
 
         Kokkos::parallel_for(
-            "ComputeLocalElementsCount", localElementCount,
-            KOKKOS_CLASS_LAMBDA(const int i) {
+            "ComputeLocalElementsCount", localElementCount, KOKKOS_CLASS_LAMBDA(const int i) {
                 int idx = i;
                 indices_t ndIndex;
 
                 // Convert linear index to NDIndex within local subdomain
                 for (unsigned int d = 0; d < Dim; ++d) {
                     const int range = lElemDom_m[d].last() - lElemDom_m[d].first() + 1;
-                    ndIndex[d] = lElemDom_m[d].first() + (idx % range);
+                    ndIndex[d]      = lElemDom_m[d].first() + (idx % range);
                     idx /= range;
                 }
 
                 // Convert NDIndex to global element index
                 size_t elementIndex = 0;
-                size_t multiplier = 1;
+                size_t multiplier   = 1;
                 for (unsigned int d = 0; d < Dim; ++d) {
                     elementIndex += ndIndex[d] * multiplier;
                     multiplier *= ne_m[d];

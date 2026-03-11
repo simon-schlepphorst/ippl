@@ -57,16 +57,17 @@ namespace ippl {
 
         using QuadratureType = GaussJacobiQuadrature<Tlhs, 5, ElementType>;
 
-        using LagrangeType = LagrangeSpace<Tlhs, Dim, 1, ElementType, QuadratureType, FieldLHS, FieldRHS>;
+        using LagrangeType =
+            LagrangeSpace<Tlhs, Dim, 1, ElementType, QuadratureType, FieldLHS, FieldRHS>;
 
         // default constructor (compatibility with Alpine)
-        PreconditionedFEMPoissonSolver() 
+        PreconditionedFEMPoissonSolver()
             : Base()
             , refElement_m()
             , quadrature_m(refElement_m, 0.0, 0.0)
-            , lagrangeSpace_m(*(new MeshType(NDIndex<Dim>(Vector<unsigned, Dim>(0)), Vector<Tlhs, Dim>(0),
-                                Vector<Tlhs, Dim>(0))), refElement_m, quadrature_m)
-        {}
+            , lagrangeSpace_m(*(new MeshType(NDIndex<Dim>(Vector<unsigned, Dim>(0)),
+                                             Vector<Tlhs, Dim>(0), Vector<Tlhs, Dim>(0))),
+                              refElement_m, quadrature_m) {}
 
         PreconditionedFEMPoissonSolver(lhs_type& lhs, rhs_type& rhs)
             : Base(lhs, rhs)
@@ -79,13 +80,13 @@ namespace ippl {
             // start a timer
             static IpplTimings::TimerRef init = IpplTimings::getTimer("initFEM");
             IpplTimings::startTimer(init);
-            
+
             rhs.fillHalo();
 
             lagrangeSpace_m.evaluateLoadVector(rhs);
 
             rhs.fillHalo();
-            
+
             IpplTimings::stopTimer(init);
         }
 
@@ -126,14 +127,15 @@ namespace ippl {
             const Tlhs absDetDPhi = Kokkos::abs(
                 refElement_m.getDeterminantOfTransformationJacobian(firstElementVertexPoints));
 
-            EvalFunctor<Tlhs, Dim, LagrangeType::numElementDOFs> poissonEquationEval(
-                DPhiInvT, absDetDPhi);
+            EvalFunctor<Tlhs, Dim, LagrangeType::numElementDOFs> poissonEquationEval(DPhiInvT,
+                                                                                     absDetDPhi);
 
             // get BC type of our RHS
-            std::array<FieldBC, 2*Dim> bcTypes = (this->rhs_mp)->getFieldBC();
-            FieldBC bcType = bcTypes[0];
+            std::array<FieldBC, 2 * Dim> bcTypes = (this->rhs_mp)->getFieldBC();
+            FieldBC bcType                       = bcTypes[0];
 
-            const auto algoOperator = [poissonEquationEval, &bcTypes, this](rhs_type field) -> lhs_type {
+            const auto algoOperator = [poissonEquationEval, &bcTypes,
+                                       this](rhs_type field) -> lhs_type {
                 // set appropriate BCs for the field as the info gets lost in the CG iteration
                 field.setFieldBC(bcTypes);
 
@@ -144,7 +146,8 @@ namespace ippl {
                 return return_field;
             };
 
-            const auto algoOperatorL = [poissonEquationEval, &bcField, this](lhs_type field) -> lhs_type {
+            const auto algoOperatorL = [poissonEquationEval, &bcField,
+                                        this](lhs_type field) -> lhs_type {
                 // set appropriate BCs for the field as the info gets lost in the CG iteration
                 field.setFieldBC(bcField);
 
@@ -155,7 +158,8 @@ namespace ippl {
                 return return_field;
             };
 
-            const auto algoOperatorU = [poissonEquationEval, &bcField, this](lhs_type field) -> lhs_type {
+            const auto algoOperatorU = [poissonEquationEval, &bcField,
+                                        this](lhs_type field) -> lhs_type {
                 // set appropriate BCs for the field as the info gets lost in the CG iteration
                 field.setFieldBC(bcField);
 
@@ -166,29 +170,34 @@ namespace ippl {
                 return return_field;
             };
 
-            const auto algoOperatorUL = [poissonEquationEval, &bcField, this](lhs_type field) -> lhs_type {
+            const auto algoOperatorUL = [poissonEquationEval, &bcField,
+                                         this](lhs_type field) -> lhs_type {
                 // set appropriate BCs for the field as the info gets lost in the CG iteration
                 field.setFieldBC(bcField);
 
                 field.fillHalo();
 
-                auto return_field = lagrangeSpace_m.evaluateAx_upperlower(field, poissonEquationEval);
+                auto return_field =
+                    lagrangeSpace_m.evaluateAx_upperlower(field, poissonEquationEval);
 
                 return return_field;
             };
 
-            const auto algoOperatorInvD = [poissonEquationEval, &bcField, this](lhs_type field) -> lhs_type {
+            const auto algoOperatorInvD = [poissonEquationEval, &bcField,
+                                           this](lhs_type field) -> lhs_type {
                 // set appropriate BCs for the field as the info gets lost in the CG iteration
                 field.setFieldBC(bcField);
 
                 field.fillHalo();
 
-                auto return_field = lagrangeSpace_m.evaluateAx_inversediag(field, poissonEquationEval);
+                auto return_field =
+                    lagrangeSpace_m.evaluateAx_inversediag(field, poissonEquationEval);
 
                 return return_field;
             };
 
-            const auto algoOperatorD = [poissonEquationEval, &bcField, this](lhs_type field) -> lhs_type {
+            const auto algoOperatorD = [poissonEquationEval, &bcField,
+                                        this](lhs_type field) -> lhs_type {
                 // set appropriate BCs for the field as the info gets lost in the CG iteration
                 field.setFieldBC(bcField);
 
@@ -207,19 +216,19 @@ namespace ippl {
             int inner    = this->params_m.template get<int>("gauss_seidel_inner_iterations");
             int outer    = this->params_m.template get<int>("gauss_seidel_outer_iterations");
             double omega = this->params_m.template get<double>("ssor_omega");
-            int richardson_iterations =
-                this->params_m.template get<int>("richardson_iterations");
+            int richardson_iterations = this->params_m.template get<int>("richardson_iterations");
 
             pcg_algo_m.setPreconditioner(algoOperator, algoOperatorL, algoOperatorU, algoOperatorUL,
-                                     algoOperatorInvD, algoOperatorD, 0, 0, preconditioner_type,
-                                     level, degree, richardson_iterations, inner, outer, omega);
+                                         algoOperatorInvD, algoOperatorD, 0, 0, preconditioner_type,
+                                         level, degree, richardson_iterations, inner, outer, omega);
 
             pcg_algo_m.setOperator(algoOperator);
 
             // send boundary values to RHS (load vector) i.e. lifting (Dirichlet BCs)
             if (bcType == CONSTANT_FACE) {
-                *(this->rhs_mp) = *(this->rhs_mp) -
-                    lagrangeSpace_m.evaluateAx_lift(*(this->rhs_mp), poissonEquationEval);
+                *(this->rhs_mp) =
+                    *(this->rhs_mp)
+                    - lagrangeSpace_m.evaluateAx_lift(*(this->rhs_mp), poissonEquationEval);
             }
 
             // start a timer
@@ -280,9 +289,9 @@ namespace ippl {
             Tlhs avg = this->lagrangeSpace_m.computeAvg(*(this->lhs_mp));
             if (Vol) {
                 lhs_type unit((this->lhs_mp)->get_mesh(), (this->lhs_mp)->getLayout());
-                unit = 1.0;
+                unit     = 1.0;
                 Tlhs vol = this->lagrangeSpace_m.computeAvg(unit);
-                return avg/vol;
+                return avg / vol;
             } else {
                 return avg;
             }

@@ -33,7 +33,8 @@ namespace ippl {
      * @tparam FieldLHS field type for the left hand side
      * @tparam FieldRHS field type for the right hand side
      */
-    template <typename FieldLHS, typename FieldRHS = FieldLHS, unsigned Order = 1, unsigned QuadNumNodes = 5>
+    template <typename FieldLHS, typename FieldRHS = FieldLHS, unsigned Order = 1,
+              unsigned QuadNumNodes = 5>
     class FEMPoissonSolver : public Poisson<FieldLHS, FieldRHS> {
         constexpr static unsigned Dim = FieldLHS::dim;
         using Tlhs                    = typename FieldLHS::value_type;
@@ -55,16 +56,17 @@ namespace ippl {
 
         using QuadratureType = GaussJacobiQuadrature<Tlhs, QuadNumNodes, ElementType>;
 
-        using LagrangeType = LagrangeSpace<Tlhs, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>;
+        using LagrangeType =
+            LagrangeSpace<Tlhs, Dim, Order, ElementType, QuadratureType, FieldLHS, FieldRHS>;
 
         // default constructor (compatibility with Alpine)
-        FEMPoissonSolver() 
+        FEMPoissonSolver()
             : Base()
             , refElement_m()
             , quadrature_m(refElement_m, 0.0, 0.0)
-            , lagrangeSpace_m(*(new MeshType(NDIndex<Dim>(Vector<unsigned, Dim>(0)), Vector<Tlhs, Dim>(0),
-                                Vector<Tlhs, Dim>(0))), refElement_m, quadrature_m)
-        {}
+            , lagrangeSpace_m(*(new MeshType(NDIndex<Dim>(Vector<unsigned, Dim>(0)),
+                                             Vector<Tlhs, Dim>(0), Vector<Tlhs, Dim>(0))),
+                              refElement_m, quadrature_m) {}
 
         FEMPoissonSolver(lhs_type& lhs, rhs_type& rhs)
             : Base(lhs, rhs)
@@ -77,13 +79,13 @@ namespace ippl {
             // start a timer
             static IpplTimings::TimerRef init = IpplTimings::getTimer("initFEM");
             IpplTimings::startTimer(init);
-            
+
             rhs.fillHalo();
 
             lagrangeSpace_m.evaluateLoadVector(rhs);
 
             rhs.fillHalo();
-            
+
             IpplTimings::stopTimer(init);
         }
 
@@ -124,14 +126,16 @@ namespace ippl {
             const Tlhs absDetDPhi = Kokkos::abs(
                 refElement_m.getDeterminantOfTransformationJacobian(firstElementVertexPoints));
 
-            EvalFunctor<Tlhs, Dim, LagrangeType::numElementDOFs> poissonEquationEval(
-                DPhiInvT, absDetDPhi);
+            EvalFunctor<Tlhs, Dim, LagrangeType::numElementDOFs> poissonEquationEval(DPhiInvT,
+                                                                                     absDetDPhi);
 
             // get BC type of our RHS
             auto bcField = (this->rhs_mp)->getFieldBC();
-            FieldBC bcType = bcField[0]->getBCType(); // assuming all faces have the same BC for Poisson
+            FieldBC bcType =
+                bcField[0]->getBCType();  // assuming all faces have the same BC for Poisson
 
-            const auto algoOperator = [poissonEquationEval, &bcField, this](rhs_type field) -> lhs_type {
+            const auto algoOperator = [poissonEquationEval, &bcField,
+                                       this](rhs_type field) -> lhs_type {
                 // set appropriate BCs for the field as the info gets lost in the CG iteration
                 field.setFieldBC(bcField);
                 field.fillHalo();
@@ -145,8 +149,9 @@ namespace ippl {
 
             // send boundary values to RHS (load vector) i.e. lifting (Dirichlet BCs)
             if (bcType == CONSTANT_FACE) {
-                *(this->rhs_mp) = *(this->rhs_mp) -
-                    lagrangeSpace_m.evaluateAx_lift(*(this->rhs_mp), poissonEquationEval);
+                *(this->rhs_mp) =
+                    *(this->rhs_mp)
+                    - lagrangeSpace_m.evaluateAx_lift(*(this->rhs_mp), poissonEquationEval);
             }
 
             // start a timer
@@ -201,9 +206,9 @@ namespace ippl {
             Tlhs avg = this->lagrangeSpace_m.computeAvg(*(this->lhs_mp));
             if (Vol) {
                 lhs_type unit((this->lhs_mp)->get_mesh(), (this->lhs_mp)->getLayout());
-                unit = 1.0;
+                unit     = 1.0;
                 Tlhs vol = this->lagrangeSpace_m.computeAvg(unit);
-                return avg/vol;
+                return avg / vol;
             } else {
                 return avg;
             }

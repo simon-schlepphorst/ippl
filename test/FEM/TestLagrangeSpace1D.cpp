@@ -21,8 +21,9 @@ void runLagrangeSpaceTest() {
     isParallel.fill(true);
     ippl::FieldLayout<Dim> layout(MPI_COMM_WORLD, number_of_vertices, isParallel);
 
-    using DOFHandler_t = ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
-    using FieldType    = typename DOFHandler_t::FEMContainer_t;
+    using DOFHandler_t =
+        ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
+    using FieldType = typename DOFHandler_t::FEMContainer_t;
 
     // Reference element
     ElementType ref_element;
@@ -41,7 +42,8 @@ void runLagrangeSpaceTest() {
     const unsigned number_of_points = 200;
     const T dx                      = interval_size / (number_of_points - 1);
 
-    const std::string local_basis_filename = "1D_lagrange_local_basis_order" + std::to_string(Order) + ".csv";
+    const std::string local_basis_filename =
+        "1D_lagrange_local_basis_order" + std::to_string(Order) + ".csv";
     std::cout << "Writing local basis functions to " << local_basis_filename << "\n";
     std::ofstream local_basis_out(local_basis_filename, std::ios::out);
 
@@ -49,7 +51,8 @@ void runLagrangeSpaceTest() {
     for (unsigned i = 0; i < number_of_local_vertices; ++i) {
         local_basis_out << ",v_" << i;
     }
-    for (unsigned i = number_of_local_vertices; i < number_of_local_vertices + number_of_local_edge_dofs; ++i) {
+    for (unsigned i = number_of_local_vertices;
+         i < number_of_local_vertices + number_of_local_edge_dofs; ++i) {
         local_basis_out << ",e_" << i;
     }
 
@@ -60,7 +63,8 @@ void runLagrangeSpaceTest() {
         for (unsigned i = 0; i < number_of_local_vertices; ++i) {
             local_basis_out << "," << lagrange_space.evaluateRefElementShapeFunction(i, x);
         }
-        for (unsigned i = number_of_local_vertices; i < number_of_local_vertices + number_of_local_edge_dofs; ++i) {
+        for (unsigned i = number_of_local_vertices;
+             i < number_of_local_vertices + number_of_local_edge_dofs; ++i) {
             local_basis_out << "," << lagrange_space.evaluateRefElementShapeFunction(i, x);
         }
         local_basis_out << "\n";

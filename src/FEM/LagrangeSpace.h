@@ -7,9 +7,9 @@
 
 #include <cmath>
 
-#include "FEM/FiniteElementSpace.h"
 #include "FEM/DOFHandler.h"
 #include "FEM/DOFLocations.h"
+#include "FEM/FiniteElementSpace.h"
 
 namespace ippl {
 
@@ -28,22 +28,24 @@ namespace ippl {
               typename QuadratureType, typename FieldLHS, typename FieldRHS>
     // requires IsQuadrature<QuadratureType>
     class LagrangeSpace
-        : public FiniteElementSpace<T, Dim, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement, ElementType,
-                                    QuadratureType, FieldLHS, FieldRHS> {
+        : public FiniteElementSpace<
+              T, Dim, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement,
+              ElementType, QuadratureType, FieldLHS, FieldRHS> {
     public:
         // DOFHandler type for this space
         typedef DOFHandler<T, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>> DOFHandler_t;
 
         // FEMContainer type compatible with this space
         typedef typename DOFHandler_t::FEMContainer_t FEMContainer_t;
-        
+
         // The number of degrees of freedom per element
-        static constexpr unsigned numElementDOFs = FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement;
+        static constexpr unsigned numElementDOFs =
+            FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>::dofsPerElement;
 
         // The dimension of the mesh
         static constexpr unsigned dim = FiniteElementSpace<T, Dim, numElementDOFs, ElementType,
                                                            QuadratureType, FieldLHS, FieldRHS>::dim;
-        
+
         // The order of the Lagrange space
         static constexpr unsigned order = Order;
 
@@ -70,7 +72,6 @@ namespace ippl {
         typedef typename detail::ViewType<T, Dim>::view_type ViewType;
         typedef typename detail::ViewType<T, Dim, Kokkos::MemoryTraits<Kokkos::Atomic>>::view_type
             AtomicViewType;
-
 
         ///////////////////////////////////////////////////////////////////////
         // Constructors ///////////////////////////////////////////////////////
@@ -133,7 +134,7 @@ namespace ippl {
          * @return size_t - The local DOF index
          */
         KOKKOS_FUNCTION size_t getLocalDOFIndex(const size_t& elementIndex,
-                                 const size_t& globalDOFIndex) const override;
+                                                const size_t& globalDOFIndex) const override;
 
         /**
         UNUSED IN THIS CLASS
@@ -158,7 +159,8 @@ namespace ippl {
         KOKKOS_FUNCTION Vector<size_t, numElementDOFs> getLocalDOFIndices() const override;
 
         /**
-        TODO STILL USED, BUT ONLY UNTIL WE INTRODUCE DOFHANDLER IN evaluateAx, evaluateLoadVector, computeErrorL2, computeAvg
+        TODO STILL USED, BUT ONLY UNTIL WE INTRODUCE DOFHANDLER IN evaluateAx, evaluateLoadVector,
+        computeErrorL2, computeAvg
          * @brief Get the global DOF indices (vector of global DOF indices) of an element
          *
          * @param elementIndex size_t - The index of the element
@@ -241,8 +243,8 @@ namespace ippl {
         FieldLHS evaluateAx_diag(FieldLHS& field, F& evalFunction) const;
 
         /**
-         * @brief Assemble the left stiffness matrix A of the system 
-         * but only for the boundary values, so that they can be 
+         * @brief Assemble the left stiffness matrix A of the system
+         * but only for the boundary values, so that they can be
          * subtracted from the RHS for treatment of Dirichlet BCs
          *
          * @param field The field to assemble the matrix for
@@ -296,22 +298,22 @@ namespace ippl {
             Vector<size_t, Dim> nr_m;
             ElementType ref_element_m;
             LagrangeDOFLocations<T, Dim, Order> dofLocations_m;
-            
+
             // these are the functions needed for interpolation to the space
             KOKKOS_FUNCTION indices_t getMeshVertexNDIndex(const size_t& vertex_index) const;
 
             KOKKOS_FUNCTION size_t getLocalDOFIndex(const indices_t& elementNDIndex,
-                const size_t& globalDOFIndex) const;
+                                                    const size_t& globalDOFIndex) const;
             KOKKOS_FUNCTION Vector<size_t, numElementDOFs> getGlobalDOFIndices(
                 const indices_t& elementNDIndex) const;
 
             KOKKOS_FUNCTION point_t getRefElementDOFLocation(const size_t& localDOF) const;
 
             KOKKOS_FUNCTION T evaluateRefElementShapeFunction(const size_t& localDOF,
-                const point_t& localPoint) const;
+                                                              const point_t& localPoint) const;
         };
 
-        DeviceStruct getDeviceMirror() const; 
+        DeviceStruct getDeviceMirror() const;
 
     private:
         /**

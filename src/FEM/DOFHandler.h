@@ -8,10 +8,12 @@
 
 #include <Kokkos_Core.hpp>
 
-#include "FEM/FiniteElementSpaceTraits.h"
-#include "FEM/FEMContainer.h"
-#include "Utility/IpplException.h"
 #include <array>
+
+#include "Utility/IpplException.h"
+
+#include "FEM/FEMContainer.h"
+#include "FEM/FiniteElementSpaceTraits.h"
 
 namespace ippl {
 
@@ -22,7 +24,8 @@ namespace ippl {
      * which entity type does this DOF belong to, and what is the local index within that entity?"
      *
      * @tparam T The floating point type
-     * @tparam SpaceTraits The finite element space traits (FiniteElementSpaceTraits<SpaceTag, Dim, Order>)
+     * @tparam SpaceTraits The finite element space traits (FiniteElementSpaceTraits<SpaceTag, Dim,
+     * Order>)
      */
     template <typename T, typename SpaceTraits_>
     class DOFHandler {
@@ -30,27 +33,28 @@ namespace ippl {
         // Space traits
         using SpaceTraits = SpaceTraits_;
         using EntityTypes = typename SpaceTraits::EntityTypes;
-        using DOFNums = typename SpaceTraits::DOFNums;
+        using DOFNums     = typename SpaceTraits::DOFNums;
 
         // Compatible FEMContainer type
         static constexpr unsigned Dim = SpaceTraits::Dim;
-        using FEMContainer_t = FEMContainer<T, Dim, EntityTypes, DOFNums>;
+        using FEMContainer_t          = FEMContainer<T, Dim, EntityTypes, DOFNums>;
 
         static constexpr unsigned dofsPerElement = SpaceTraits::dofsPerElement;
         static constexpr unsigned numEntityTypes = std::tuple_size_v<EntityTypes>;
 
         // Mesh types
-        using Mesh_t = UniformCartesian<T, Dim>;
-        using Layout_t = FieldLayout<Dim>;
+        using Mesh_t    = UniformCartesian<T, Dim>;
+        using Layout_t  = FieldLayout<Dim>;
         using indices_t = Vector<size_t, Dim>;
 
         /**
          * @brief Structure to hold DOF mapping information
          */
         struct DOFMapping {
-            size_t entityTypeIndex;                         // Index in the EntityTypes tuple
-            indices_t entityLocalIndex;                     // Offset from the NDIndex of the element to the NDIndex of the DOF (0 or 1 in each dimension)
-            size_t entityLocalDOF;                          // Local DOF number within the entity
+            size_t entityTypeIndex;      // Index in the EntityTypes tuple
+            indices_t entityLocalIndex;  // Offset from the NDIndex of the element to the NDIndex of
+                                         // the DOF (0 or 1 in each dimension)
+            size_t entityLocalDOF;       // Local DOF number within the entity
         };
 
         using DOFMapping_t = DOFMapping;
@@ -58,7 +62,7 @@ namespace ippl {
         ///////////////////////////////////////////////////////////////////////
         // Constructors ///////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////
-        
+
         DOFHandler();
         DOFHandler(Mesh_t& mesh, const Layout_t& layout);
 
@@ -96,7 +100,8 @@ namespace ippl {
          * @param elementIndex Linear element index (global)
          * @return NDIndex of the element in the local subdomain
          */
-        KOKKOS_FUNCTION indices_t getLocalElementNDIndex(const size_t& elementIndex, int nghost) const;
+        KOKKOS_FUNCTION indices_t getLocalElementNDIndex(const size_t& elementIndex,
+                                                         int nghost) const;
 
         /**
          * @brief Check if a DOF is on the domain boundary in a specific dimension
@@ -112,7 +117,7 @@ namespace ippl {
          * @return true if the DOF is on the boundary in the specified dimension, false otherwise
          */
         KOKKOS_FUNCTION bool isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF,
-                                              const unsigned& dim) const;
+                                             const unsigned& dim) const;
 
         /**
          * @brief Check if a DOF is on the domain boundary in any dimension.
@@ -123,7 +128,8 @@ namespace ippl {
          * @param localDOF Local DOF index within the element (0 to dofsPerElement-1)
          * @return true if the DOF is on the boundary, false otherwise
          */
-        KOKKOS_FUNCTION bool isDOFOnBoundary(const size_t& elementIndex, const size_t& localDOF) const;
+        KOKKOS_FUNCTION bool isDOFOnBoundary(const size_t& elementIndex,
+                                             const size_t& localDOF) const;
 
         /**
          * @brief Get the total number of elements in the mesh
@@ -186,7 +192,7 @@ namespace ippl {
         ///////////////////////////////////////////////////////////////////////
         // Member Variables ///////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////
-        
+
         Mesh_t* mesh_m;
 
         // Number of elements in each direction
@@ -221,7 +227,8 @@ namespace ippl {
     ///////////////////////////////////////////////////////////////////////
 
     template <typename T, unsigned Dim, unsigned Order>
-    using LagrangeDOFHandler = DOFHandler<T, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>>;
+    using LagrangeDOFHandler =
+        DOFHandler<T, FiniteElementSpaceTraits<LagrangeSpaceTag, Dim, Order>>;
 
     template <typename T, unsigned Dim, unsigned Order>
     using NedelecDOFHandler = DOFHandler<T, FiniteElementSpaceTraits<NedelecSpaceTag, Dim, Order>>;

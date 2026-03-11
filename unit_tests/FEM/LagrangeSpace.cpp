@@ -19,8 +19,9 @@ struct EvalFunctor {
         : DPhiInvT(DPhiInvT)
         , absDetDPhi(absDetDPhi) {}
 
-    KOKKOS_FUNCTION auto operator()(const size_t& i, const size_t& j,
-                    const ippl::Vector<ippl::Vector<Tlhs, Dim>, numElemDOFs>& grad_b_q_k) const {
+    KOKKOS_FUNCTION auto operator()(
+        const size_t& i, const size_t& j,
+        const ippl::Vector<ippl::Vector<Tlhs, Dim>, numElemDOFs>& grad_b_q_k) const {
         return dot((DPhiInvT * grad_b_q_k[j]), (DPhiInvT * grad_b_q_k[i])).apply() * absDetDPhi;
     }
 };
@@ -31,7 +32,7 @@ protected:
     void SetUp() override {}
 
 public:
-    using value_t = T;
+    using value_t                 = T;
     static constexpr unsigned dim = Dim;
 
     static_assert(Dim == 1 || Dim == 2 || Dim == 3, "Dim must be 1, 2 or 3");
@@ -45,14 +46,19 @@ public:
     using QuadratureType2      = ippl::MidpointQuadrature<T, 2, ElementType>;
     using QuadratureType3      = ippl::MidpointQuadrature<T, 3, ElementType>;
     using BetterQuadratureType = ippl::GaussLegendreQuadrature<T, 5, ElementType>;
-    using DOFHandler_t         = ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
-    using FieldType            = typename DOFHandler_t::FEMContainer_t;
-    using BCType               = std::array<ippl::FieldBC, 2*Dim>;
+    using DOFHandler_t =
+        ippl::DOFHandler<T, ippl::FiniteElementSpaceTraits<ippl::LagrangeSpaceTag, Dim, Order>>;
+    using FieldType = typename DOFHandler_t::FEMContainer_t;
+    using BCType    = std::array<ippl::FieldBC, 2 * Dim>;
 
-    using LagrangeType = ippl::LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldType, FieldType>;
-    using LagrangeType2 = ippl::LagrangeSpace<T, Dim, Order, ElementType, QuadratureType2, FieldType, FieldType>;
-    using LagrangeType3 = ippl::LagrangeSpace<T, Dim, Order, ElementType, QuadratureType3, FieldType, FieldType>;
-    using LagrangeTypeBetter = ippl::LagrangeSpace<T, Dim, Order, ElementType, BetterQuadratureType, FieldType, FieldType>;
+    using LagrangeType =
+        ippl::LagrangeSpace<T, Dim, Order, ElementType, QuadratureType, FieldType, FieldType>;
+    using LagrangeType2 =
+        ippl::LagrangeSpace<T, Dim, Order, ElementType, QuadratureType2, FieldType, FieldType>;
+    using LagrangeType3 =
+        ippl::LagrangeSpace<T, Dim, Order, ElementType, QuadratureType3, FieldType, FieldType>;
+    using LagrangeTypeBetter =
+        ippl::LagrangeSpace<T, Dim, Order, ElementType, BetterQuadratureType, FieldType, FieldType>;
 
     LagrangeSpaceTest()
         : ref_element()
@@ -413,10 +419,10 @@ TYPED_TEST(LagrangeSpaceTest, getGlobalDOFIndices) {
 */
 
 TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
-    auto& lagrangeSpace      = this->lagrangeSpace;
+    auto& lagrangeSpace              = this->lagrangeSpace;
     static constexpr std::size_t dim = TestFixture::dim;
-    const std::size_t& order = lagrangeSpace.order;
-    using T                  = typename TestFixture::value_t;
+    const std::size_t& order         = lagrangeSpace.order;
+    using T                          = typename TestFixture::value_t;
 
     T tolerance = std::numeric_limits<T>::epsilon() * 10.0;
 
@@ -428,8 +434,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
             T expected = (i == j) ? 1.0 : 0.0;
             T computed = lagrangeSpace.evaluateRefElementShapeFunction(j, node_i);
             ASSERT_NEAR(computed, expected, tolerance)
-                << "Kronecker delta failed: Order=" << order << ", Dim=" << dim
-                << ", basis " << j << " at node " << i;
+                << "Kronecker delta failed: Order=" << order << ", Dim=" << dim << ", basis " << j
+                << " at node " << i;
         }
     }
 
@@ -440,8 +446,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
             for (size_t dof = 0; dof < lagrangeSpace.numElementDOFs; ++dof) {
                 sum += lagrangeSpace.evaluateRefElementShapeFunction(dof, x);
             }
-            ASSERT_NEAR(sum, 1.0, tolerance)
-                << "Partition of unity failed at x=" << x;
+            ASSERT_NEAR(sum, 1.0, tolerance) << "Partition of unity failed at x=" << x;
         }
     } else if (dim == 2) {
         ippl::Vector<T, dim> point;
@@ -449,7 +454,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
             point[0] = x;
             for (T y = 0.0; y <= 1.0; y += 0.05) {
                 point[1] = y;
-                T sum = 0.0;
+                T sum    = 0.0;
                 for (size_t dof = 0; dof < lagrangeSpace.numElementDOFs; ++dof) {
                     sum += lagrangeSpace.evaluateRefElementShapeFunction(dof, point);
                 }
@@ -465,7 +470,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
                 point[1] = y;
                 for (T z = 0.0; z <= 1.0; z += 0.05) {
                     point[2] = z;
-                    T sum = 0.0;
+                    T sum    = 0.0;
                     for (size_t dof = 0; dof < lagrangeSpace.numElementDOFs; ++dof) {
                         sum += lagrangeSpace.evaluateRefElementShapeFunction(dof, point);
                     }
@@ -501,7 +506,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
             // Test at center point (0.5, 0.5) - all should be 0.25
             ippl::Vector<T, dim> center = {0.5, 0.5};
             for (size_t i = 0; i < 4; ++i) {
-                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.25, tolerance)
+                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.25,
+                            tolerance)
                     << "Order 1, 2D: φ" << i << "(0.5, 0.5) should be 0.25";
             }
 
@@ -520,7 +526,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
             // Test at center point (0.5, 0.5, 0.5) - all should be 0.125
             ippl::Vector<T, dim> center = {0.5, 0.5, 0.5};
             for (size_t i = 0; i < 8; ++i) {
-                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.125, tolerance)
+                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.125,
+                            tolerance)
                     << "Order 1, 3D: φ" << i << "(0.5, 0.5, 0.5) should be 0.125";
             }
         }
@@ -534,13 +541,13 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
 
             T x = 0.25;
             ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(0, x),
-                       2.0*x*x - 3.0*x + 1.0, tolerance)
+                        2.0 * x * x - 3.0 * x + 1.0, tolerance)
                 << "Order 2, 1D: φ0(0.25) mismatch";
-            ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(1, x),
-                       2.0*x*x - x, tolerance)
+            ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(1, x), 2.0 * x * x - x,
+                        tolerance)
                 << "Order 2, 1D: φ1(0.25) mismatch";
-            ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(2, x),
-                       -4.0*x*x + 4.0*x, tolerance)
+            ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(2, x), -4.0 * x * x + 4.0 * x,
+                        tolerance)
                 << "Order 2, 1D: φ2(0.25) mismatch (edge DOF)";
 
             // Test at x = 0.5 (edge DOF location)
@@ -558,13 +565,15 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
 
             // Vertex DOFs should be zero at center
             for (size_t i = 0; i < 4; ++i) {
-                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.0, tolerance)
+                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.0,
+                            tolerance)
                     << "Order 2, 2D: vertex φ" << i << "(0.5, 0.5) should be ~0";
             }
 
             // Edge DOFs (indices 4-7) should also be zero at center
             for (size_t i = 4; i < 8; ++i) {
-                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.0, tolerance)
+                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.0,
+                            tolerance)
                     << "Order 2, 2D: edge φ" << i << "(0.5, 0.5) should be ~0";
             }
 
@@ -578,23 +587,25 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunction) {
 
             // All DOFs except volume DOF (last one) should be zero at center
             for (size_t i = 0; i < lagrangeSpace.numElementDOFs - 1; ++i) {
-                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.0, tolerance)
+                ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(i, center), 0.0,
+                            tolerance)
                     << "Order 2, 3D: φ" << i << "(0.5, 0.5, 0.5) should be ~0";
             }
 
             // Volume DOF (last DOF) should be 1 at center
             ASSERT_NEAR(lagrangeSpace.evaluateRefElementShapeFunction(
-                lagrangeSpace.numElementDOFs - 1, center), 1.0, tolerance)
+                            lagrangeSpace.numElementDOFs - 1, center),
+                        1.0, tolerance)
                 << "Order 2, 3D: volume DOF at (0.5, 0.5, 0.5) should be 1 (Kronecker delta)";
         }
     }
 }
 
 TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
-    auto& lagrangeSpace      = this->lagrangeSpace;
+    auto& lagrangeSpace              = this->lagrangeSpace;
     static constexpr std::size_t dim = TestFixture::dim;
-    const std::size_t& order = lagrangeSpace.order;
-    using T                  = typename TestFixture::value_t;
+    const std::size_t& order         = lagrangeSpace.order;
+    using T                          = typename TestFixture::value_t;
 
     T tolerance = std::numeric_limits<T>::epsilon() * 10.0;
 
@@ -711,11 +722,11 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
                 const auto grad_1 = lagrangeSpace.evaluateRefElementShapeFunctionGradient(1, x);
                 const auto grad_2 = lagrangeSpace.evaluateRefElementShapeFunctionGradient(2, x);
 
-                ASSERT_NEAR(grad_0[0], 4.0*x - 3.0, tolerance)
+                ASSERT_NEAR(grad_0[0], 4.0 * x - 3.0, tolerance)
                     << "Order 2, 1D: ∇φ0(" << x << ") mismatch";
-                ASSERT_NEAR(grad_1[0], 4.0*x - 1.0, tolerance)
+                ASSERT_NEAR(grad_1[0], 4.0 * x - 1.0, tolerance)
                     << "Order 2, 1D: ∇φ1(" << x << ") mismatch";
-                ASSERT_NEAR(grad_2[0], -8.0*x + 4.0, tolerance)
+                ASSERT_NEAR(grad_2[0], -8.0 * x + 4.0, tolerance)
                     << "Order 2, 1D: ∇φ2(" << x << ") mismatch (edge DOF)";
             }
         } else if (dim == 2) {
@@ -729,7 +740,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
                     T sum_grad_x = 0.0;
                     T sum_grad_y = 0.0;
                     for (size_t dof = 0; dof < lagrangeSpace.numElementDOFs; ++dof) {
-                        const auto grad = lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
+                        const auto grad =
+                            lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
                         sum_grad_x += grad[0];
                         sum_grad_y += grad[1];
                         ASSERT_TRUE(std::isfinite(grad[0]))
@@ -757,7 +769,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
                         T sum_grad_y = 0.0;
                         T sum_grad_z = 0.0;
                         for (size_t dof = 0; dof < lagrangeSpace.numElementDOFs; ++dof) {
-                            const auto grad = lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
+                            const auto grad =
+                                lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
                             sum_grad_x += grad[0];
                             sum_grad_y += grad[1];
                             sum_grad_z += grad[2];
@@ -780,7 +793,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
         }
     } else if (order >= 3) {
         // For order 3 and higher: Test general property that sum of gradients = 0
-        // Use a more relaxed tolerance for higher orders due to accumulation of floating-point errors
+        // Use a more relaxed tolerance for higher orders due to accumulation of floating-point
+        // errors
         T relaxed_tolerance = tolerance * lagrangeSpace.numElementDOFs;
 
         if (dim == 1) {
@@ -790,10 +804,12 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
                     const auto grad = lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, x);
                     sum_grad += grad[0];
                     ASSERT_TRUE(std::isfinite(grad[0]))
-                        << "Order " << order << ", 1D: gradient of φ" << dof << " at x=" << x << " should be finite";
+                        << "Order " << order << ", 1D: gradient of φ" << dof << " at x=" << x
+                        << " should be finite";
                 }
                 ASSERT_NEAR(sum_grad, 0.0, relaxed_tolerance)
-                    << "Order " << order << ", 1D: sum of all gradients at x=" << x << " should be 0";
+                    << "Order " << order << ", 1D: sum of all gradients at x=" << x
+                    << " should be 0";
             }
         } else if (dim == 2) {
             ippl::Vector<T, dim> point;
@@ -805,16 +821,20 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
                     T sum_grad_x = 0.0;
                     T sum_grad_y = 0.0;
                     for (size_t dof = 0; dof < lagrangeSpace.numElementDOFs; ++dof) {
-                        const auto grad = lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
+                        const auto grad =
+                            lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
                         sum_grad_x += grad[0];
                         sum_grad_y += grad[1];
                         ASSERT_TRUE(std::isfinite(grad[0]) && std::isfinite(grad[1]))
-                            << "Order " << order << ", 2D: gradient of φ" << dof << " should be finite";
+                            << "Order " << order << ", 2D: gradient of φ" << dof
+                            << " should be finite";
                     }
                     ASSERT_NEAR(sum_grad_x, 0.0, relaxed_tolerance)
-                        << "Order " << order << ", 2D: sum of ∂φ/∂x at (" << x << "," << y << ") should be 0";
+                        << "Order " << order << ", 2D: sum of ∂φ/∂x at (" << x << "," << y
+                        << ") should be 0";
                     ASSERT_NEAR(sum_grad_y, 0.0, relaxed_tolerance)
-                        << "Order " << order << ", 2D: sum of ∂φ/∂y at (" << x << "," << y << ") should be 0";
+                        << "Order " << order << ", 2D: sum of ∂φ/∂y at (" << x << "," << y
+                        << ") should be 0";
                 }
             }
         } else if (dim == 3) {
@@ -830,12 +850,15 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
                         T sum_grad_y = 0.0;
                         T sum_grad_z = 0.0;
                         for (size_t dof = 0; dof < lagrangeSpace.numElementDOFs; ++dof) {
-                            const auto grad = lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
+                            const auto grad =
+                                lagrangeSpace.evaluateRefElementShapeFunctionGradient(dof, point);
                             sum_grad_x += grad[0];
                             sum_grad_y += grad[1];
                             sum_grad_z += grad[2];
-                            ASSERT_TRUE(std::isfinite(grad[0]) && std::isfinite(grad[1]) && std::isfinite(grad[2]))
-                                << "Order " << order << ", 3D: gradient of φ" << dof << " should be finite";
+                            ASSERT_TRUE(std::isfinite(grad[0]) && std::isfinite(grad[1])
+                                        && std::isfinite(grad[2]))
+                                << "Order " << order << ", 3D: gradient of φ" << dof
+                                << " should be finite";
                         }
                         ASSERT_NEAR(sum_grad_x, 0.0, relaxed_tolerance)
                             << "Order " << order << ", 3D: sum of ∂φ/∂x should be 0";
@@ -853,33 +876,31 @@ TYPED_TEST(LagrangeSpaceTest, evaluateRefElementShapeFunctionGradient) {
 }
 
 TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
-
     static constexpr std::size_t order = TestFixture::DOFHandler_t::SpaceTraits::Order;
-    
+
     if constexpr (order == 1) {
-        using T         = typename TestFixture::value_t;
-        using FieldType = typename TestFixture::FieldType;
-        using BCType    = typename TestFixture::BCType;
+        using T            = typename TestFixture::value_t;
+        using FieldType    = typename TestFixture::FieldType;
+        using BCType       = typename TestFixture::BCType;
         using LagrangeType = typename TestFixture::LagrangeType;
-    
+
         const auto& refElement           = this->ref_element;
         const auto& lagrangeSpace        = this->lagrangeSpaceBigger;
         auto mesh                        = this->biggerMesh;
         static constexpr std::size_t dim = TestFixture::dim;
-    
+
         // create layout
-        ippl::NDIndex<dim> domain(
-            ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
-    
+        ippl::NDIndex<dim> domain(ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
+
         // specifies decomposition; here all dimensions are parallel
         std::array<bool, dim> isParallel;
         isParallel.fill(true);
-    
+
         ippl::FieldLayout<dim> layout(MPI_COMM_WORLD, domain, isParallel);
-    
+
         FieldType x(mesh, layout, 1);
         FieldType z(mesh, layout, 1);
-    
+
         // Define boundary conditions
         BCType bcField;
         for (unsigned int i = 0; i < 2 * dim; ++i) {
@@ -887,31 +908,29 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
         }
         x.setFieldBC(bcField);
         z.setFieldBC(bcField);
-    
+
         // 1. Define the eval function for the evaluateAx function
-    
-        const ippl::Vector<std::size_t, dim> zeroNdIndex =
-            ippl::Vector<std::size_t, dim>(0);
-    
+
+        const ippl::Vector<std::size_t, dim> zeroNdIndex = ippl::Vector<std::size_t, dim>(0);
+
         // Inverse Transpose Transformation Jacobian
-        const ippl::Vector<T, dim> DPhiInvT =
-            refElement.getInverseTransposeTransformationJacobian(
-                lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex));
-    
+        const ippl::Vector<T, dim> DPhiInvT = refElement.getInverseTransposeTransformationJacobian(
+            lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex));
+
         // Absolute value of det Phi_K
         const T absDetDPhi = std::abs(refElement.getDeterminantOfTransformationJacobian(
             lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex)));
-    
+
         // Poisson equation eval function (based on the weak form)
         EvalFunctor<T, dim, LagrangeType::numElementDOFs> eval(DPhiInvT, absDetDPhi);
-    
+
         std::cout << "Inverse Transpose Jacobian: ";
         for (unsigned int d = 0; d < dim; ++d) {
             std::cout << DPhiInvT[d] << " ";
         }
         std::cout << std::endl;
         std::cout << "Absolute Determinant of Jacobian: " << absDetDPhi << std::endl;
-        
+
         if constexpr (dim == 1) {
             x = 1.25;
 
@@ -926,10 +945,10 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             FieldType ref_field(mesh, layout, 1);
 
             using VertexType = ippl::Vertex<dim>;
-            auto view_ref = ref_field.template getView<VertexType>();
-            auto mirror   = Kokkos::create_mirror_view(view_ref);
+            auto view_ref    = ref_field.template getView<VertexType>();
+            auto mirror      = Kokkos::create_mirror_view(view_ref);
 
-            auto ldom     = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom = ref_field.template getLayout<VertexType>().getLocalNDIndex();
 
             nestedViewLoop(mirror, 0, [&]<typename... Idx>(const Idx... args) {
                 using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
@@ -939,7 +958,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 // We don't take into account nghost as this causes
                 // coords to be negative, which causes an overflow due
                 // to the index type.
-                // All below indices for setting the ref_field are 
+                // All below indices for setting the ref_field are
                 // shifted by 1 to include the ghost (applies to all tests).
                 for (unsigned int d = 0; d < lagrangeSpace.dim; ++d) {
                     coords[d] += ldom[d].first();
@@ -957,7 +976,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             Kokkos::deep_copy(view_ref, mirror);
 
             // compare values with reference
-            z  = z - ref_field;
+            z          = z - ref_field;
             double err = z.norm();
 
             ASSERT_NEAR(err, 0.0, 1e-6);
@@ -975,10 +994,10 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 // set up for comparison
                 FieldType ref_field(mesh, layout, 1);
                 using VertexType = ippl::Vertex<dim>;
-                auto view_ref = ref_field.template getView<VertexType>();
-                auto mirror   = Kokkos::create_mirror_view(view_ref);
+                auto view_ref    = ref_field.template getView<VertexType>();
+                auto mirror      = Kokkos::create_mirror_view(view_ref);
 
-                auto ldom     = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+                auto ldom = ref_field.template getLayout<VertexType>().getLocalNDIndex();
 
                 nestedViewLoop(mirror, 0, [&]<typename... Idx>(const Idx... args) {
                     using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
@@ -988,17 +1007,17 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                     for (unsigned int d = 0; d < lagrangeSpace.dim; ++d) {
                         coords[d] += ldom[d].first();
                     }
-                    
+
                     // reference field
-                    if (((coords[0] == 2) && (coords[1] == 2)) ||
-                        ((coords[0] == 2) && (coords[1] == 4)) ||
-                        ((coords[0] == 4) && (coords[1] == 2)) ||
-                        ((coords[0] == 4) && (coords[1] == 4))) {
+                    if (((coords[0] == 2) && (coords[1] == 2))
+                        || ((coords[0] == 2) && (coords[1] == 4))
+                        || ((coords[0] == 4) && (coords[1] == 2))
+                        || ((coords[0] == 4) && (coords[1] == 4))) {
                         mirror(args...) = 1.5;
-                    } else if (((coords[0] == 2) && (coords[1] == 3)) ||
-                        ((coords[0] == 3) && (coords[1] == 2)) ||
-                        ((coords[0] == 3) && (coords[1] == 4)) ||
-                        ((coords[0] == 4) && (coords[1] == 3))) {
+                    } else if (((coords[0] == 2) && (coords[1] == 3))
+                               || ((coords[0] == 3) && (coords[1] == 2))
+                               || ((coords[0] == 3) && (coords[1] == 4))
+                               || ((coords[0] == 4) && (coords[1] == 3))) {
                         mirror(args...) = 1.0;
                     } else {
                         mirror(args...) = 0.0;
@@ -1009,7 +1028,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 Kokkos::deep_copy(view_ref, mirror);
 
                 // compare values with reference
-                z  = z - ref_field;
+                z          = z - ref_field;
                 double err = z.norm();
 
                 ASSERT_NEAR(err, 0.0, 1e-6);
@@ -1027,10 +1046,10 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             // set up for comparison
             FieldType ref_field(mesh, layout, 1);
             using VertexType = ippl::Vertex<dim>;
-            auto view_ref = ref_field.template getView<VertexType>();
-            auto mirror   = Kokkos::create_mirror_view(view_ref);
+            auto view_ref    = ref_field.template getView<VertexType>();
+            auto mirror      = Kokkos::create_mirror_view(view_ref);
 
-            auto ldom     = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom = ref_field.template getLayout<VertexType>().getLocalNDIndex();
 
             nestedViewLoop(mirror, 0, [&]<typename... Idx>(const Idx... args) {
                 using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
@@ -1042,25 +1061,23 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 }
 
                 // reference field
-                if (((coords[0] > 1) && (coords[0] < 5)) && 
-                    ((coords[1] > 1) && (coords[1] < 5)) && 
-                    ((coords[2] > 1) && (coords[2] < 5))) {
-                    
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror(args...) = 2.53125;
-                    
+
                     if ((coords[0] == 3) || (coords[1] == 3) || (coords[2] == 3)) {
                         mirror(args...) = 2.25;
                     }
 
-                    if (((coords[0] == 3) && (coords[1] == 3) && (coords[2] == 2)) ||
-                        ((coords[0] == 3) && (coords[1] == 2) && (coords[2] == 3)) ||
-                        ((coords[0] == 2) && (coords[1] == 3) && (coords[2] == 3)) ||
-                        ((coords[0] == 4) && (coords[1] == 3) && (coords[2] == 3)) ||
-                        ((coords[0] == 3) && (coords[1] == 4) && (coords[2] == 3)) ||
-                        ((coords[0] == 3) && (coords[1] == 3) && (coords[2] == 4))) {
+                    if (((coords[0] == 3) && (coords[1] == 3) && (coords[2] == 2))
+                        || ((coords[0] == 3) && (coords[1] == 2) && (coords[2] == 3))
+                        || ((coords[0] == 2) && (coords[1] == 3) && (coords[2] == 3))
+                        || ((coords[0] == 4) && (coords[1] == 3) && (coords[2] == 3))
+                        || ((coords[0] == 3) && (coords[1] == 4) && (coords[2] == 3))
+                        || ((coords[0] == 3) && (coords[1] == 3) && (coords[2] == 4))) {
                         mirror(args...) = 1.5;
                     }
-                    
+
                     if ((coords[0] == 3) && (coords[1] == 3) && (coords[2] == 3)) {
                         mirror(args...) = 0.0;
                     }
@@ -1073,7 +1090,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             Kokkos::deep_copy(view_ref, mirror);
 
             // compare values with reference
-            z  = z - ref_field;
+            z          = z - ref_field;
             double err = z.norm();
 
             ASSERT_NEAR(err, 0.0, 1e-6);
@@ -1081,30 +1098,29 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             // only 1D, 2D, 3D supported
             FAIL();
         }
-    } else if constexpr(order == 2) {
-        using T         = typename TestFixture::value_t;
-        using FieldType = typename TestFixture::FieldType;
-        using BCType    = typename TestFixture::BCType;
+    } else if constexpr (order == 2) {
+        using T            = typename TestFixture::value_t;
+        using FieldType    = typename TestFixture::FieldType;
+        using BCType       = typename TestFixture::BCType;
         using LagrangeType = typename TestFixture::LagrangeType2;
-    
+
         const auto& refElement           = this->ref_element;
         const auto& lagrangeSpace        = this->lagrangeSpaceBigger2;
         auto mesh                        = this->biggerMesh;
         static constexpr std::size_t dim = TestFixture::dim;
-    
+
         // create layout
-        ippl::NDIndex<dim> domain(
-            ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
-    
+        ippl::NDIndex<dim> domain(ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
+
         // specifies decomposition; here all dimensions are parallel
         std::array<bool, dim> isParallel;
         isParallel.fill(true);
-    
+
         ippl::FieldLayout<dim> layout(MPI_COMM_WORLD, domain, isParallel);
-    
+
         FieldType x(mesh, layout, 1);
         FieldType z(mesh, layout, 1);
-    
+
         // Define boundary conditions
         BCType bcField;
         for (unsigned int i = 0; i < 2 * dim; ++i) {
@@ -1112,24 +1128,22 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
         }
         x.setFieldBC(bcField);
         z.setFieldBC(bcField);
-    
+
         // 1. Define the eval function for the evaluateAx function
-    
-        const ippl::Vector<std::size_t, dim> zeroNdIndex =
-            ippl::Vector<std::size_t, dim>(0);
-    
+
+        const ippl::Vector<std::size_t, dim> zeroNdIndex = ippl::Vector<std::size_t, dim>(0);
+
         // Inverse Transpose Transformation Jacobian
-        const ippl::Vector<T, dim> DPhiInvT =
-            refElement.getInverseTransposeTransformationJacobian(
-                lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex));
-    
+        const ippl::Vector<T, dim> DPhiInvT = refElement.getInverseTransposeTransformationJacobian(
+            lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex));
+
         // Absolute value of det Phi_K
         const T absDetDPhi = std::abs(refElement.getDeterminantOfTransformationJacobian(
             lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex)));
-    
+
         // Poisson equation eval function (based on the weak form)
         EvalFunctor<T, dim, LagrangeType::numElementDOFs> eval(DPhiInvT, absDetDPhi);
-    
+
         std::cout << "Inverse Transpose Jacobian: ";
         for (unsigned int d = 0; d < dim; ++d) {
             std::cout << DPhiInvT[d] << " ";
@@ -1146,7 +1160,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             x.fillHalo();
 
             using VertexType1 = ippl::Vertex<dim>;
-            using EdgeXType1 = ippl::EdgeX<dim>;
+            using EdgeXType1  = ippl::EdgeX<dim>;
 
             auto ldom_vertex1 = x.template getLayout<VertexType1>().getLocalNDIndex();
             auto ldom_edge_x1 = x.template getLayout<EdgeXType1>().getLocalNDIndex();
@@ -1159,7 +1173,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             FieldType ref_field_edge_x(mesh, layout, 1);
 
             using VertexType = ippl::Vertex<dim>;
-            using EdgeXType = ippl::EdgeX<dim>;
+            using EdgeXType  = ippl::EdgeX<dim>;
 
             auto view_ref_vertex = ref_field_vertex.template getView<VertexType>();
             auto view_ref_edge_x = ref_field_edge_x.template getView<EdgeXType>();
@@ -1172,7 +1186,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // Vertex DOFs
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_vertex[d].first();
@@ -1187,7 +1201,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // Edge DOFs
             nestedViewLoop(mirror_edge_x, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_x[d].first();
@@ -1196,7 +1210,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 // Interior edge DOFs
                 if ((coords[0] > 1) && (coords[0] < 4)) {
                     mirror_edge_x(args...) = 4.0;
-                // Edges next to boundary
+                    // Edges next to boundary
                 } else if ((coords[0] == 1) || (coords[0] == 4)) {
                     mirror_edge_x(args...) = 5.0;
                 }
@@ -1211,7 +1225,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             Kokkos::deep_copy(view_ref_edge_x, mirror_edge_x);
 
             // Compare
-            z = z - ref_field_vertex - ref_field_edge_x;
+            z          = z - ref_field_vertex - ref_field_edge_x;
             double err = z.norm();
             ASSERT_NEAR(err, 0.0, 1e-6);
 
@@ -1247,10 +1261,11 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 auto mirror_edge_y = Kokkos::create_mirror_view(view_ref_edge_y);
                 auto mirror_face_xy = Kokkos::create_mirror_view(view_ref_face_xy);
 
-                auto ldom_vertex = ref_field_vertex.template getLayout<VertexType>().getLocalNDIndex();
-                auto ldom_edge_x = ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
-                auto ldom_edge_y = ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
-                auto ldom_face_xy = ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
+                auto ldom_vertex = ref_field_vertex.template
+    getLayout<VertexType>().getLocalNDIndex(); auto ldom_edge_x = ref_field_edge_x.template
+    getLayout<EdgeXType>().getLocalNDIndex(); auto ldom_edge_y = ref_field_edge_y.template
+    getLayout<EdgeYType>().getLocalNDIndex(); auto ldom_face_xy = ref_field_face_xy.template
+    getLayout<FaceXYType>().getLocalNDIndex();
 
                 // Vertex DOFs
                 nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
@@ -1374,9 +1389,10 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             auto ldom_edge_x = ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
             auto ldom_edge_y = ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
             auto ldom_edge_z = ref_field_edge_z.template getLayout<EdgeZType>().getLocalNDIndex();
-            auto ldom_face_xy = ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
-            auto ldom_face_xz = ref_field_face_xz.template getLayout<FaceXZType>().getLocalNDIndex();
-            auto ldom_face_yz = ref_field_face_yz.template getLayout<FaceYZType>().getLocalNDIndex();
+            auto ldom_face_xy = ref_field_face_xy.template
+    getLayout<FaceXYType>().getLocalNDIndex(); auto ldom_face_xz = ref_field_face_xz.template
+    getLayout<FaceXZType>().getLocalNDIndex(); auto ldom_face_yz = ref_field_face_yz.template
+    getLayout<FaceYZType>().getLocalNDIndex();
 
             // Vertex DOFs
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
@@ -1611,10 +1627,11 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 auto mirror_edge_y = Kokkos::create_mirror_view(view_ref_edge_y);
                 auto mirror_face_xy = Kokkos::create_mirror_view(view_ref_face_xy);
 
-                auto ldom_vertex = ref_field_vertex.template getLayout<VertexType>().getLocalNDIndex();
-                auto ldom_edge_x = ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
-                auto ldom_edge_y = ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
-                auto ldom_face_xy = ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
+                auto ldom_vertex = ref_field_vertex.template
+    getLayout<VertexType>().getLocalNDIndex(); auto ldom_edge_x = ref_field_edge_x.template
+    getLayout<EdgeXType>().getLocalNDIndex(); auto ldom_edge_y = ref_field_edge_y.template
+    getLayout<EdgeYType>().getLocalNDIndex(); auto ldom_face_xy = ref_field_face_xy.template
+    getLayout<FaceXYType>().getLocalNDIndex();
 
                 // Vertex DOFs
                 nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
@@ -1742,10 +1759,11 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             auto ldom_edge_x = ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
             auto ldom_edge_y = ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
             auto ldom_edge_z = ref_field_edge_z.template getLayout<EdgeZType>().getLocalNDIndex();
-            auto ldom_face_xy = ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
-            auto ldom_face_xz = ref_field_face_xz.template getLayout<FaceXZType>().getLocalNDIndex();
-            auto ldom_face_yz = ref_field_face_yz.template getLayout<FaceYZType>().getLocalNDIndex();
-            auto ldom_volume = ref_field_volume.template getLayout<HexahedronType>().getLocalNDIndex();
+            auto ldom_face_xy = ref_field_face_xy.template
+    getLayout<FaceXYType>().getLocalNDIndex(); auto ldom_face_xz = ref_field_face_xz.template
+    getLayout<FaceXZType>().getLocalNDIndex(); auto ldom_face_yz = ref_field_face_yz.template
+    getLayout<FaceYZType>().getLocalNDIndex(); auto ldom_volume = ref_field_volume.template
+    getLayout<HexahedronType>().getLocalNDIndex();
 
             // Vertex DOFs
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
@@ -1909,16 +1927,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
     using FieldType = typename TestFixture::FieldType;
     using BCType    = typename TestFixture::BCType;
 
-    const auto& lagrangeSpace = this->symmetricLagrangeSpace;
-    auto mesh                 = this->symmetricMesh;
-    static constexpr std::size_t dim = TestFixture::dim;
+    const auto& lagrangeSpace          = this->symmetricLagrangeSpace;
+    auto mesh                          = this->symmetricMesh;
+    static constexpr std::size_t dim   = TestFixture::dim;
     static constexpr std::size_t order = TestFixture::DOFHandler_t::SpaceTraits::Order;
 
     if constexpr (order == 1) {
-
         // initialize the RHS field
-        ippl::NDIndex<dim> domain(
-            ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
+        ippl::NDIndex<dim> domain(ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
 
         // specifies decomposition; here all dimensions are parallel
         std::array<bool, dim> isParallel;
@@ -1948,10 +1964,10 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
 
             // set up for comparison
             using VertexType = ippl::Vertex<dim>;
-            auto view_ref = ref_field.template getView<VertexType>();
-            auto mirror   = Kokkos::create_mirror_view(view_ref);
+            auto view_ref    = ref_field.template getView<VertexType>();
+            auto mirror      = Kokkos::create_mirror_view(view_ref);
 
-            auto ldom     = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom = ref_field.template getLayout<VertexType>().getLocalNDIndex();
 
             nestedViewLoop(mirror, 0, [&]<typename... Idx>(const Idx... args) {
                 using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
@@ -2002,10 +2018,10 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
 
             // set up for comparison
             using VertexType = ippl::Vertex<dim>;
-            auto view_ref = ref_field.template getView<VertexType>();
-            auto mirror   = Kokkos::create_mirror_view(view_ref);
+            auto view_ref    = ref_field.template getView<VertexType>();
+            auto mirror      = Kokkos::create_mirror_view(view_ref);
 
-            auto ldom     = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom = ref_field.template getLayout<VertexType>().getLocalNDIndex();
 
             nestedViewLoop(mirror, 0, [&]<typename... Idx>(const Idx... args) {
                 using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
@@ -2017,8 +2033,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // reference field
-                if ((coords[0] < 2) || (coords[1] < 2) || 
-                    (coords[0] > 4) || (coords[1] > 4)) {
+                if ((coords[0] < 2) || (coords[1] < 2) || (coords[0] > 4) || (coords[1] > 4)) {
                     mirror(args...) = 0.0;
                 } else {
                     mirror(args...) = 0.875;
@@ -2035,7 +2050,6 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
             ASSERT_NEAR(err, 0.0, 1e-6);
 
         } else if constexpr (dim == 3) {
-
             rhs_field = 1.25;
 
             // call evaluateLoadVector
@@ -2045,10 +2059,10 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
 
             // set up for comparison
             using VertexType = ippl::Vertex<dim>;
-            auto view_ref = ref_field.template getView<VertexType>();
-            auto mirror   = Kokkos::create_mirror_view(view_ref);
+            auto view_ref    = ref_field.template getView<VertexType>();
+            auto mirror      = Kokkos::create_mirror_view(view_ref);
 
-            auto ldom     = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom = ref_field.template getLayout<VertexType>().getLocalNDIndex();
 
             nestedViewLoop(mirror, 0, [&]<typename... Idx>(const Idx... args) {
                 using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
@@ -2060,8 +2074,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // reference field
-                if ((coords[0] == 1) || (coords[1] == 1) || (coords[2] == 1) ||
-                    (coords[0] == 5) || (coords[1] == 5) || (coords[2] == 5)) {
+                if ((coords[0] == 1) || (coords[1] == 1) || (coords[2] == 1) || (coords[0] == 5)
+                    || (coords[1] == 5) || (coords[2] == 5)) {
                     mirror(args...) = 0.0;
                 } else {
                     mirror(args...) = 0.15625;
@@ -2084,8 +2098,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
         // Higher order (Order 2) tests
 
         // initialize the RHS field
-        ippl::NDIndex<dim> domain(
-            ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
+        ippl::NDIndex<dim> domain(ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
 
         // specifies decomposition; here all dimensions are parallel
         std::array<bool, dim> isParallel;
@@ -2114,7 +2127,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
             // For order 2, we have vertices and edge midpoints
             // Expected values computed using quadrature integration
             using VertexType = ippl::Vertex<dim>;
-            using EdgeXType   = ippl::EdgeX<dim>;
+            using EdgeXType  = ippl::EdgeX<dim>;
 
             auto view_ref_vertex = ref_field.template getView<VertexType>();
             auto view_ref_edge_x = ref_field.template getView<EdgeXType>();
@@ -2173,23 +2186,23 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
 
             // For order 2 2D, we have vertices, edge midpoints and face midpoints
             using VertexType = ippl::Vertex<dim>;
-            using EdgeXType   = ippl::EdgeX<dim>;
-            using EdgeYType   = ippl::EdgeY<dim>;
-            using FaceXYType  = ippl::FaceXY<dim>;
+            using EdgeXType  = ippl::EdgeX<dim>;
+            using EdgeYType  = ippl::EdgeY<dim>;
+            using FaceXYType = ippl::FaceXY<dim>;
 
-            auto view_ref_vertex = ref_field.template getView<VertexType>();
-            auto view_ref_edge_x = ref_field.template getView<EdgeXType>();
-            auto view_ref_edge_y = ref_field.template getView<EdgeYType>();
-            auto view_ref_face_xy= ref_field.template getView<FaceXYType>();
-            auto mirror_vertex   = Kokkos::create_mirror_view(view_ref_vertex);
-            auto mirror_edge_x   = Kokkos::create_mirror_view(view_ref_edge_x);
-            auto mirror_edge_y   = Kokkos::create_mirror_view(view_ref_edge_y);
-            auto mirror_face_xy  = Kokkos::create_mirror_view(view_ref_face_xy);
+            auto view_ref_vertex  = ref_field.template getView<VertexType>();
+            auto view_ref_edge_x  = ref_field.template getView<EdgeXType>();
+            auto view_ref_edge_y  = ref_field.template getView<EdgeYType>();
+            auto view_ref_face_xy = ref_field.template getView<FaceXYType>();
+            auto mirror_vertex    = Kokkos::create_mirror_view(view_ref_vertex);
+            auto mirror_edge_x    = Kokkos::create_mirror_view(view_ref_edge_x);
+            auto mirror_edge_y    = Kokkos::create_mirror_view(view_ref_edge_y);
+            auto mirror_face_xy   = Kokkos::create_mirror_view(view_ref_face_xy);
 
-            auto ldom_vertex = ref_field.template getLayout<VertexType>().getLocalNDIndex();
-            auto ldom_edge_x = ref_field.template getLayout<EdgeXType>().getLocalNDIndex();
-            auto ldom_edge_y = ref_field.template getLayout<EdgeYType>().getLocalNDIndex();
-            auto ldom_face_xy= ref_field.template getLayout<FaceXYType>().getLocalNDIndex();
+            auto ldom_vertex  = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom_edge_x  = ref_field.template getLayout<EdgeXType>().getLocalNDIndex();
+            auto ldom_edge_y  = ref_field.template getLayout<EdgeYType>().getLocalNDIndex();
+            auto ldom_face_xy = ref_field.template getLayout<FaceXYType>().getLocalNDIndex();
 
             // Set vertex values
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
@@ -2201,8 +2214,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // Boundary vertices are zero
-                if ((coords[0] < 2) || (coords[1] < 2) ||
-                    (coords[0] > 4) || (coords[1] > 4)) {
+                if ((coords[0] < 2) || (coords[1] < 2) || (coords[0] > 4) || (coords[1] > 4)) {
                     mirror_vertex(args...) = 0.0;
                 } else {
                     mirror_vertex(args...) = 0.097222222222;  // Computed from quadrature
@@ -2259,7 +2271,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
             Kokkos::deep_copy(view_ref_edge_x, mirror_edge_x);
             Kokkos::deep_copy(view_ref_edge_y, mirror_edge_y);
             Kokkos::deep_copy(view_ref_face_xy, mirror_face_xy);
-            
+
             // compare values with reference
             rhs_field  = rhs_field - ref_field;
             double err = rhs_field.norm();
@@ -2273,40 +2285,41 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
             lagrangeSpace.evaluateLoadVector(rhs_field);
             rhs_field.fillHalo();
 
-            // For order 2 3D, we have vertices, edge midpoints, face midpoints and hexahedron centers
-            using VertexType = ippl::Vertex<dim>;
-            using EdgeXType   = ippl::EdgeX<dim>;
-            using EdgeYType   = ippl::EdgeY<dim>;
-            using EdgeZType   = ippl::EdgeZ<dim>;
-            using FaceXYType  = ippl::FaceXY<dim>;
-            using FaceXZType  = ippl::FaceXZ<dim>;
-            using FaceYZType  = ippl::FaceYZ<dim>;
+            // For order 2 3D, we have vertices, edge midpoints, face midpoints and hexahedron
+            // centers
+            using VertexType     = ippl::Vertex<dim>;
+            using EdgeXType      = ippl::EdgeX<dim>;
+            using EdgeYType      = ippl::EdgeY<dim>;
+            using EdgeZType      = ippl::EdgeZ<dim>;
+            using FaceXYType     = ippl::FaceXY<dim>;
+            using FaceXZType     = ippl::FaceXZ<dim>;
+            using FaceYZType     = ippl::FaceYZ<dim>;
             using HexahedronType = ippl::Hexahedron<dim>;
 
-            auto view_ref_vertex = ref_field.template getView<VertexType>();
-            auto view_ref_edge_x = ref_field.template getView<EdgeXType>();
-            auto view_ref_edge_y = ref_field.template getView<EdgeYType>();
-            auto view_ref_edge_z = ref_field.template getView<EdgeZType>();
-            auto view_ref_face_xy= ref_field.template getView<FaceXYType>();
-            auto view_ref_face_xz= ref_field.template getView<FaceXZType>();
-            auto view_ref_face_yz= ref_field.template getView<FaceYZType>();
+            auto view_ref_vertex     = ref_field.template getView<VertexType>();
+            auto view_ref_edge_x     = ref_field.template getView<EdgeXType>();
+            auto view_ref_edge_y     = ref_field.template getView<EdgeYType>();
+            auto view_ref_edge_z     = ref_field.template getView<EdgeZType>();
+            auto view_ref_face_xy    = ref_field.template getView<FaceXYType>();
+            auto view_ref_face_xz    = ref_field.template getView<FaceXZType>();
+            auto view_ref_face_yz    = ref_field.template getView<FaceYZType>();
             auto view_ref_hexahedron = ref_field.template getView<HexahedronType>();
-            auto mirror_vertex   = Kokkos::create_mirror_view(view_ref_vertex);
-            auto mirror_edge_x   = Kokkos::create_mirror_view(view_ref_edge_x);
-            auto mirror_edge_y   = Kokkos::create_mirror_view(view_ref_edge_y);
-            auto mirror_edge_z   = Kokkos::create_mirror_view(view_ref_edge_z);
-            auto mirror_face_xy  = Kokkos::create_mirror_view(view_ref_face_xy);
-            auto mirror_face_xz  = Kokkos::create_mirror_view(view_ref_face_xz);
-            auto mirror_face_yz  = Kokkos::create_mirror_view(view_ref_face_yz);
-            auto mirror_hexahedron = Kokkos::create_mirror_view(view_ref_hexahedron);
+            auto mirror_vertex       = Kokkos::create_mirror_view(view_ref_vertex);
+            auto mirror_edge_x       = Kokkos::create_mirror_view(view_ref_edge_x);
+            auto mirror_edge_y       = Kokkos::create_mirror_view(view_ref_edge_y);
+            auto mirror_edge_z       = Kokkos::create_mirror_view(view_ref_edge_z);
+            auto mirror_face_xy      = Kokkos::create_mirror_view(view_ref_face_xy);
+            auto mirror_face_xz      = Kokkos::create_mirror_view(view_ref_face_xz);
+            auto mirror_face_yz      = Kokkos::create_mirror_view(view_ref_face_yz);
+            auto mirror_hexahedron   = Kokkos::create_mirror_view(view_ref_hexahedron);
 
-            auto ldom_vertex = ref_field.template getLayout<VertexType>().getLocalNDIndex();
-            auto ldom_edge_x = ref_field.template getLayout<EdgeXType>().getLocalNDIndex();
-            auto ldom_edge_y = ref_field.template getLayout<EdgeYType>().getLocalNDIndex();
-            auto ldom_edge_z = ref_field.template getLayout<EdgeZType>().getLocalNDIndex();
-            auto ldom_face_xy= ref_field.template getLayout<FaceXYType>().getLocalNDIndex();
-            auto ldom_face_xz= ref_field.template getLayout<FaceXZType>().getLocalNDIndex();
-            auto ldom_face_yz= ref_field.template getLayout<FaceYZType>().getLocalNDIndex();
+            auto ldom_vertex     = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom_edge_x     = ref_field.template getLayout<EdgeXType>().getLocalNDIndex();
+            auto ldom_edge_y     = ref_field.template getLayout<EdgeYType>().getLocalNDIndex();
+            auto ldom_edge_z     = ref_field.template getLayout<EdgeZType>().getLocalNDIndex();
+            auto ldom_face_xy    = ref_field.template getLayout<FaceXYType>().getLocalNDIndex();
+            auto ldom_face_xz    = ref_field.template getLayout<FaceXZType>().getLocalNDIndex();
+            auto ldom_face_yz    = ref_field.template getLayout<FaceYZType>().getLocalNDIndex();
             auto ldom_hexahedron = ref_field.template getLayout<HexahedronType>().getLocalNDIndex();
 
             // Set vertex values
@@ -2319,8 +2332,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // Boundary vertices are zero
-                if ((coords[0] == 1) || (coords[1] == 1) || (coords[2] == 1) ||
-                    (coords[0] == 5) || (coords[1] == 5) || (coords[2] == 5)) {
+                if ((coords[0] == 1) || (coords[1] == 1) || (coords[2] == 1) || (coords[0] == 5)
+                    || (coords[1] == 5) || (coords[2] == 5)) {
                     mirror_vertex(args...) = 0.0;
                 } else {
                     mirror_vertex(args...) = 0.005787037037;  // Computed from quadrature
@@ -2337,8 +2350,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // Interior edge midpoints
-                if ((coords[1] == 1) || (coords[2] == 1) ||
-                    (coords[1] == 5) || (coords[2] == 5)) {
+                if ((coords[1] == 1) || (coords[2] == 1) || (coords[1] == 5) || (coords[2] == 5)) {
                     mirror_edge_x(args...) = 0.0;
                 } else {
                     mirror_edge_x(args...) = 0.011574074074;  // Computed from quadrature
@@ -2354,8 +2366,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // Interior edge midpoints
-                if ((coords[0] == 1) || (coords[2] == 1) ||
-                    (coords[0] == 5) || (coords[2] == 5)) {
+                if ((coords[0] == 1) || (coords[2] == 1) || (coords[0] == 5) || (coords[2] == 5)) {
                     mirror_edge_y(args...) = 0.0;
                 } else {
                     mirror_edge_y(args...) = 0.011574074074;  // Computed from quadrature
@@ -2371,8 +2382,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // Interior edge midpoints
-                if ((coords[0] == 1) || (coords[1] == 1) ||
-                    (coords[0] == 5) || (coords[1] == 5)) {
+                if ((coords[0] == 1) || (coords[1] == 1) || (coords[0] == 5) || (coords[1] == 5)) {
                     mirror_edge_z(args...) = 0.0;
                 } else {
                     mirror_edge_z(args...) = 0.011574074074;  // Computed from quadrature
@@ -2455,8 +2465,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
         // Higher order (Order 3) tests
 
         // initialize the RHS field
-        ippl::NDIndex<dim> domain(
-            ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
+        ippl::NDIndex<dim> domain(ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
 
         // specifies decomposition; here all dimensions are parallel
         std::array<bool, dim> isParallel;
@@ -2572,8 +2581,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // Boundary vertices are zero
-                if ((coords[0] < 2) || (coords[1] < 2) ||
-                    (coords[0] > 4) || (coords[1] > 4)) {
+                if ((coords[0] < 2) || (coords[1] < 2) || (coords[0] > 4) || (coords[1] > 4)) {
                     mirror_vertex(args...) = 0.0;
                 } else {
                     mirror_vertex(args...) = 0.054687500000;  // From calculator
@@ -2647,14 +2655,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
             rhs_field.fillHalo();
 
             // For order 3 3D: vertices + edge DOFs + face DOFs + volume DOFs
-            using VertexType      = ippl::Vertex<dim>;
-            using EdgeXType       = ippl::EdgeX<dim>;
-            using EdgeYType       = ippl::EdgeY<dim>;
-            using EdgeZType       = ippl::EdgeZ<dim>;
-            using FaceXYType      = ippl::FaceXY<dim>;
-            using FaceXZType      = ippl::FaceXZ<dim>;
-            using FaceYZType      = ippl::FaceYZ<dim>;
-            using HexahedronType  = ippl::Hexahedron<dim>;
+            using VertexType     = ippl::Vertex<dim>;
+            using EdgeXType      = ippl::EdgeX<dim>;
+            using EdgeYType      = ippl::EdgeY<dim>;
+            using EdgeZType      = ippl::EdgeZ<dim>;
+            using FaceXYType     = ippl::FaceXY<dim>;
+            using FaceXZType     = ippl::FaceXZ<dim>;
+            using FaceYZType     = ippl::FaceYZ<dim>;
+            using HexahedronType = ippl::Hexahedron<dim>;
 
             auto view_ref_vertex     = ref_field.template getView<VertexType>();
             auto view_ref_edge_x     = ref_field.template getView<EdgeXType>();
@@ -2693,8 +2701,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                 }
 
                 // Boundary vertices are zero
-                if ((coords[0] == 1) || (coords[1] == 1) || (coords[2] == 1) ||
-                    (coords[0] == 5) || (coords[1] == 5) || (coords[2] == 5)) {
+                if ((coords[0] == 1) || (coords[1] == 1) || (coords[2] == 1) || (coords[0] == 5)
+                    || (coords[1] == 5) || (coords[2] == 5)) {
                     mirror_vertex(args...) = 0.0;
                 } else {
                     mirror_vertex(args...) = 0.002441406250;  // From calculator
@@ -2710,8 +2718,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                     coords[d] += ldom_edge_x[d].first();
                 }
 
-                if ((coords[1] == 1) || (coords[2] == 1) ||
-                    (coords[1] == 5) || (coords[2] == 5)) {
+                if ((coords[1] == 1) || (coords[2] == 1) || (coords[1] == 5) || (coords[2] == 5)) {
                     mirror_edge_x(args...) = 0.0;
                 } else {
                     mirror_edge_x(args...) = 0.003662109375;  // From calculator
@@ -2727,8 +2734,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                     coords[d] += ldom_edge_y[d].first();
                 }
 
-                if ((coords[0] == 1) || (coords[2] == 1) ||
-                    (coords[0] == 5) || (coords[2] == 5)) {
+                if ((coords[0] == 1) || (coords[2] == 1) || (coords[0] == 5) || (coords[2] == 5)) {
                     mirror_edge_y(args...) = 0.0;
                 } else {
                     mirror_edge_y(args...) = 0.003662109375;  // From calculator
@@ -2744,8 +2750,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateLoadVector) {
                     coords[d] += ldom_edge_z[d].first();
                 }
 
-                if ((coords[0] == 1) || (coords[1] == 1) ||
-                    (coords[0] == 5) || (coords[1] == 5)) {
+                if ((coords[0] == 1) || (coords[1] == 1) || (coords[0] == 5) || (coords[1] == 5)) {
                     mirror_edge_z(args...) = 0.0;
                 } else {
                     mirror_edge_z(args...) = 0.003662109375;  // From calculator
