@@ -4,7 +4,7 @@
 
 #include <functional>
 
-#include "TestUtils.h"
+#include "../TestUtils.h"
 #include "gtest/gtest.h"
 
 template <typename>
@@ -1229,7 +1229,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             double err = z.norm();
             ASSERT_NEAR(err, 0.0, 1e-6);
 
-        } /*else if constexpr (dim == 2) {
+        } else if constexpr (dim == 2) {
             if (ippl::Comm->size() == 1) {
                 x = 1.0;
 
@@ -1247,36 +1247,39 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 FieldType ref_field_face_xy(mesh, layout, 1);
 
                 using VertexType = ippl::Vertex<dim>;
-                using EdgeXType = ippl::EdgeX<dim>;
-                using EdgeYType = ippl::EdgeY<dim>;
+                using EdgeXType  = ippl::EdgeX<dim>;
+                using EdgeYType  = ippl::EdgeY<dim>;
                 using FaceXYType = ippl::FaceXY<dim>;
 
-                auto view_ref_vertex = ref_field_vertex.template getView<VertexType>();
-                auto view_ref_edge_x = ref_field_edge_x.template getView<EdgeXType>();
-                auto view_ref_edge_y = ref_field_edge_y.template getView<EdgeYType>();
+                auto view_ref_vertex  = ref_field_vertex.template getView<VertexType>();
+                auto view_ref_edge_x  = ref_field_edge_x.template getView<EdgeXType>();
+                auto view_ref_edge_y  = ref_field_edge_y.template getView<EdgeYType>();
                 auto view_ref_face_xy = ref_field_face_xy.template getView<FaceXYType>();
 
-                auto mirror_vertex = Kokkos::create_mirror_view(view_ref_vertex);
-                auto mirror_edge_x = Kokkos::create_mirror_view(view_ref_edge_x);
-                auto mirror_edge_y = Kokkos::create_mirror_view(view_ref_edge_y);
+                auto mirror_vertex  = Kokkos::create_mirror_view(view_ref_vertex);
+                auto mirror_edge_x  = Kokkos::create_mirror_view(view_ref_edge_x);
+                auto mirror_edge_y  = Kokkos::create_mirror_view(view_ref_edge_y);
                 auto mirror_face_xy = Kokkos::create_mirror_view(view_ref_face_xy);
 
-                auto ldom_vertex = ref_field_vertex.template
-    getLayout<VertexType>().getLocalNDIndex(); auto ldom_edge_x = ref_field_edge_x.template
-    getLayout<EdgeXType>().getLocalNDIndex(); auto ldom_edge_y = ref_field_edge_y.template
-    getLayout<EdgeYType>().getLocalNDIndex(); auto ldom_face_xy = ref_field_face_xy.template
-    getLayout<FaceXYType>().getLocalNDIndex();
+                auto ldom_vertex =
+                    ref_field_vertex.template getLayout<VertexType>().getLocalNDIndex();
+                auto ldom_edge_x =
+                    ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
+                auto ldom_edge_y =
+                    ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
+                auto ldom_face_xy =
+                    ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
 
                 // Vertex DOFs
                 nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_vertex[d].first();
                     }
 
-                    if (((coords[0] > 1) && (coords[0] < 5)) &&
-                        ((coords[1] > 1) && (coords[1] < 5))) {
+                    if (((coords[0] > 1) && (coords[0] < 5))
+                        && ((coords[1] > 1) && (coords[1] < 5))) {
                         mirror_vertex(args...) = -0.072427983539;
                     } else {
                         mirror_vertex(args...) = 0.0;
@@ -1285,14 +1288,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
                 // EdgeX DOFs (extends in x, check y-boundaries)
                 nestedViewLoop(mirror_edge_x, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_edge_x[d].first();
                     }
 
-                    if (((coords[0] >= 1) && (coords[0] < 4)) &&
-                        ((coords[1] > 1) && (coords[1] < 5))) {
+                    if (((coords[0] >= 1) && (coords[0] < 4))
+                        && ((coords[1] > 1) && (coords[1] < 5))) {
                         mirror_edge_x(args...) = -0.075720164609;
                     } else {
                         mirror_edge_x(args...) = 0.0;
@@ -1301,14 +1304,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
                 // EdgeY DOFs (extends in y, check x-boundaries)
                 nestedViewLoop(mirror_edge_y, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_edge_y[d].first();
                     }
 
-                    if (((coords[0] > 1) && (coords[0] < 5)) &&
-                        ((coords[1] >= 1) && (coords[1] < 4))) {
+                    if (((coords[0] > 1) && (coords[0] < 5))
+                        && ((coords[1] >= 1) && (coords[1] < 4))) {
                         mirror_edge_y(args...) = -0.075720164609;
                     } else {
                         mirror_edge_y(args...) = 0.0;
@@ -1317,14 +1320,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
                 // FaceXY DOFs (interior faces)
                 nestedViewLoop(mirror_face_xy, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_face_xy[d].first();
                     }
 
-                    if (((coords[0] >= 1) && (coords[0] < 4)) &&
-                        ((coords[1] >= 1) && (coords[1] < 4))) {
+                    if (((coords[0] >= 1) && (coords[0] < 4))
+                        && ((coords[1] >= 1) && (coords[1] < 4))) {
                         mirror_face_xy(args...) = 0.223868312757;
                     } else {
                         mirror_face_xy(args...) = 0.0;
@@ -1362,25 +1365,25 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             FieldType ref_field_face_yz(mesh, layout, 1);
 
             using VertexType = ippl::Vertex<dim>;
-            using EdgeXType = ippl::EdgeX<dim>;
-            using EdgeYType = ippl::EdgeY<dim>;
-            using EdgeZType = ippl::EdgeZ<dim>;
+            using EdgeXType  = ippl::EdgeX<dim>;
+            using EdgeYType  = ippl::EdgeY<dim>;
+            using EdgeZType  = ippl::EdgeZ<dim>;
             using FaceXYType = ippl::FaceXY<dim>;
             using FaceXZType = ippl::FaceXZ<dim>;
             using FaceYZType = ippl::FaceYZ<dim>;
 
-            auto view_ref_vertex = ref_field_vertex.template getView<VertexType>();
-            auto view_ref_edge_x = ref_field_edge_x.template getView<EdgeXType>();
-            auto view_ref_edge_y = ref_field_edge_y.template getView<EdgeYType>();
-            auto view_ref_edge_z = ref_field_edge_z.template getView<EdgeZType>();
+            auto view_ref_vertex  = ref_field_vertex.template getView<VertexType>();
+            auto view_ref_edge_x  = ref_field_edge_x.template getView<EdgeXType>();
+            auto view_ref_edge_y  = ref_field_edge_y.template getView<EdgeYType>();
+            auto view_ref_edge_z  = ref_field_edge_z.template getView<EdgeZType>();
             auto view_ref_face_xy = ref_field_face_xy.template getView<FaceXYType>();
             auto view_ref_face_xz = ref_field_face_xz.template getView<FaceXZType>();
             auto view_ref_face_yz = ref_field_face_yz.template getView<FaceYZType>();
 
-            auto mirror_vertex = Kokkos::create_mirror_view(view_ref_vertex);
-            auto mirror_edge_x = Kokkos::create_mirror_view(view_ref_edge_x);
-            auto mirror_edge_y = Kokkos::create_mirror_view(view_ref_edge_y);
-            auto mirror_edge_z = Kokkos::create_mirror_view(view_ref_edge_z);
+            auto mirror_vertex  = Kokkos::create_mirror_view(view_ref_vertex);
+            auto mirror_edge_x  = Kokkos::create_mirror_view(view_ref_edge_x);
+            auto mirror_edge_y  = Kokkos::create_mirror_view(view_ref_edge_y);
+            auto mirror_edge_z  = Kokkos::create_mirror_view(view_ref_edge_z);
             auto mirror_face_xy = Kokkos::create_mirror_view(view_ref_face_xy);
             auto mirror_face_xz = Kokkos::create_mirror_view(view_ref_face_xz);
             auto mirror_face_yz = Kokkos::create_mirror_view(view_ref_face_yz);
@@ -1389,22 +1392,23 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             auto ldom_edge_x = ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
             auto ldom_edge_y = ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
             auto ldom_edge_z = ref_field_edge_z.template getLayout<EdgeZType>().getLocalNDIndex();
-            auto ldom_face_xy = ref_field_face_xy.template
-    getLayout<FaceXYType>().getLocalNDIndex(); auto ldom_face_xz = ref_field_face_xz.template
-    getLayout<FaceXZType>().getLocalNDIndex(); auto ldom_face_yz = ref_field_face_yz.template
-    getLayout<FaceYZType>().getLocalNDIndex();
+            auto ldom_face_xy =
+                ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
+            auto ldom_face_xz =
+                ref_field_face_xz.template getLayout<FaceXZType>().getLocalNDIndex();
+            auto ldom_face_yz =
+                ref_field_face_yz.template getLayout<FaceYZType>().getLocalNDIndex();
 
             // Vertex DOFs
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_vertex[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_vertex(args...) = -0.002213077275;
                 } else {
                     mirror_vertex(args...) = 0.0;
@@ -1413,15 +1417,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // EdgeX DOFs (extends in x, check y,z-boundaries)
             nestedViewLoop(mirror_edge_x, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_x[d].first();
                 }
 
-                if (((coords[0] >= 1) && (coords[0] < 4)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] >= 1) && (coords[0] < 4)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_edge_x(args...) = -0.003822588020;
                 } else {
                     mirror_edge_x(args...) = 0.0;
@@ -1430,15 +1433,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // EdgeY DOFs (extends in y, check x,z-boundaries)
             nestedViewLoop(mirror_edge_y, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_y[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] >= 1) && (coords[1] < 4)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] >= 1) && (coords[1] < 4))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_edge_y(args...) = -0.003822588020;
                 } else {
                     mirror_edge_y(args...) = 0.0;
@@ -1447,15 +1449,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // EdgeZ DOFs (extends in z, check x,y-boundaries)
             nestedViewLoop(mirror_edge_z, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_z[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] >= 1) && (coords[2] < 4))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] >= 1) && (coords[2] < 4))) {
                     mirror_edge_z(args...) = -0.003822588020;
                 } else {
                     mirror_edge_z(args...) = 0.0;
@@ -1464,15 +1465,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // FaceXY DOFs (extends in x,y, check z-boundaries)
             nestedViewLoop(mirror_face_xy, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_face_xy[d].first();
                 }
 
-                if (((coords[0] >= 1) && (coords[0] < 4)) &&
-                    ((coords[1] >= 1) && (coords[1] < 4)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] >= 1) && (coords[0] < 4)) && ((coords[1] >= 1) && (coords[1] < 4))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_face_xy(args...) = -0.002487425697;
                 } else {
                     mirror_face_xy(args...) = 0.0;
@@ -1481,15 +1481,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // FaceXZ DOFs (extends in x,z, check y-boundaries)
             nestedViewLoop(mirror_face_xz, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_face_xz[d].first();
                 }
 
-                if (((coords[0] >= 1) && (coords[0] < 4)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] >= 1) && (coords[2] < 4))) {
+                if (((coords[0] >= 1) && (coords[0] < 4)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] >= 1) && (coords[2] < 4))) {
                     mirror_face_xz(args...) = -0.002487425697;
                 } else {
                     mirror_face_xz(args...) = 0.0;
@@ -1498,15 +1497,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // FaceYZ DOFs (extends in y,z, check x-boundaries)
             nestedViewLoop(mirror_face_yz, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_face_yz[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] >= 1) && (coords[1] < 4)) &&
-                    ((coords[2] >= 1) && (coords[2] < 4))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] >= 1) && (coords[1] < 4))
+                    && ((coords[2] >= 1) && (coords[2] < 4))) {
                     mirror_face_yz(args...) = -0.002487425697;
                 } else {
                     mirror_face_yz(args...) = 0.0;
@@ -1529,6 +1527,58 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             ASSERT_NEAR(err, 0.0, 1e-6);
         }
     } else if (order == 3) {
+        using T            = typename TestFixture::value_t;
+        using FieldType    = typename TestFixture::FieldType;
+        using BCType       = typename TestFixture::BCType;
+        using LagrangeType = typename TestFixture::LagrangeType2;
+
+        const auto& refElement           = this->ref_element;
+        const auto& lagrangeSpace        = this->lagrangeSpaceBigger2;
+        auto mesh                        = this->biggerMesh;
+        static constexpr std::size_t dim = TestFixture::dim;
+
+        // create layout
+        ippl::NDIndex<dim> domain(ippl::Vector<unsigned, dim>(mesh.getGridsize(0)));
+
+        // specifies decomposition; here all dimensions are parallel
+        std::array<bool, dim> isParallel;
+        isParallel.fill(true);
+
+        ippl::FieldLayout<dim> layout(MPI_COMM_WORLD, domain, isParallel);
+
+        FieldType x(mesh, layout, 1);
+        FieldType z(mesh, layout, 1);
+
+        // Define boundary conditions
+        BCType bcField;
+        for (unsigned int i = 0; i < 2 * dim; ++i) {
+            bcField[i] = ippl::ZERO_FACE;
+        }
+        x.setFieldBC(bcField);
+        z.setFieldBC(bcField);
+
+        // 1. Define the eval function for the evaluateAx function
+
+        const ippl::Vector<std::size_t, dim> zeroNdIndex = ippl::Vector<std::size_t, dim>(0);
+
+        // Inverse Transpose Transformation Jacobian
+        const ippl::Vector<T, dim> DPhiInvT = refElement.getInverseTransposeTransformationJacobian(
+            lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex));
+
+        // Absolute value of det Phi_K
+        const T absDetDPhi = std::abs(refElement.getDeterminantOfTransformationJacobian(
+            lagrangeSpace.getElementMeshVertexPoints(zeroNdIndex)));
+
+        // Poisson equation eval function (based on the weak form)
+        EvalFunctor<T, dim, LagrangeType::numElementDOFs> eval(DPhiInvT, absDetDPhi);
+
+        std::cout << "Inverse Transpose Jacobian: ";
+        for (unsigned int d = 0; d < dim; ++d) {
+            std::cout << DPhiInvT[d] << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "Absolute Determinant of Jacobian: " << absDetDPhi << std::endl;
+
         // Order 3 tests
         if constexpr (dim == 1) {
             x = 1.25;
@@ -1545,7 +1595,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             FieldType ref_field_edge_x(mesh, layout, 1);
 
             using VertexType = ippl::Vertex<dim>;
-            using EdgeXType = ippl::EdgeX<dim>;
+            using EdgeXType  = ippl::EdgeX<dim>;
 
             auto view_ref_vertex = ref_field_vertex.template getView<VertexType>();
             auto view_ref_edge_x = ref_field_edge_x.template getView<EdgeXType>();
@@ -1558,7 +1608,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // Vertex DOFs
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_vertex[d].first();
@@ -1573,7 +1623,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // EdgeX DOFs (both edge DOFs have the same value)
             nestedViewLoop(mirror_edge_x, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_x[d].first();
@@ -1591,7 +1641,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             Kokkos::deep_copy(view_ref_edge_x, mirror_edge_x);
 
             // Compare
-            z = z - ref_field_vertex - ref_field_edge_x;
+            z          = z - ref_field_vertex - ref_field_edge_x;
             double err = z.norm();
             ASSERT_NEAR(err, 0.0, 1e-6);
 
@@ -1613,36 +1663,39 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                 FieldType ref_field_face_xy(mesh, layout, 1);
 
                 using VertexType = ippl::Vertex<dim>;
-                using EdgeXType = ippl::EdgeX<dim>;
-                using EdgeYType = ippl::EdgeY<dim>;
+                using EdgeXType  = ippl::EdgeX<dim>;
+                using EdgeYType  = ippl::EdgeY<dim>;
                 using FaceXYType = ippl::FaceXY<dim>;
 
-                auto view_ref_vertex = ref_field_vertex.template getView<VertexType>();
-                auto view_ref_edge_x = ref_field_edge_x.template getView<EdgeXType>();
-                auto view_ref_edge_y = ref_field_edge_y.template getView<EdgeYType>();
+                auto view_ref_vertex  = ref_field_vertex.template getView<VertexType>();
+                auto view_ref_edge_x  = ref_field_edge_x.template getView<EdgeXType>();
+                auto view_ref_edge_y  = ref_field_edge_y.template getView<EdgeYType>();
                 auto view_ref_face_xy = ref_field_face_xy.template getView<FaceXYType>();
 
-                auto mirror_vertex = Kokkos::create_mirror_view(view_ref_vertex);
-                auto mirror_edge_x = Kokkos::create_mirror_view(view_ref_edge_x);
-                auto mirror_edge_y = Kokkos::create_mirror_view(view_ref_edge_y);
+                auto mirror_vertex  = Kokkos::create_mirror_view(view_ref_vertex);
+                auto mirror_edge_x  = Kokkos::create_mirror_view(view_ref_edge_x);
+                auto mirror_edge_y  = Kokkos::create_mirror_view(view_ref_edge_y);
                 auto mirror_face_xy = Kokkos::create_mirror_view(view_ref_face_xy);
 
-                auto ldom_vertex = ref_field_vertex.template
-    getLayout<VertexType>().getLocalNDIndex(); auto ldom_edge_x = ref_field_edge_x.template
-    getLayout<EdgeXType>().getLocalNDIndex(); auto ldom_edge_y = ref_field_edge_y.template
-    getLayout<EdgeYType>().getLocalNDIndex(); auto ldom_face_xy = ref_field_face_xy.template
-    getLayout<FaceXYType>().getLocalNDIndex();
+                auto ldom_vertex =
+                    ref_field_vertex.template getLayout<VertexType>().getLocalNDIndex();
+                auto ldom_edge_x =
+                    ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
+                auto ldom_edge_y =
+                    ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
+                auto ldom_face_xy =
+                    ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
 
                 // Vertex DOFs
                 nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_vertex[d].first();
                     }
 
-                    if (((coords[0] > 1) && (coords[0] < 5)) &&
-                        ((coords[1] > 1) && (coords[1] < 5))) {
+                    if (((coords[0] > 1) && (coords[0] < 5))
+                        && ((coords[1] > 1) && (coords[1] < 5))) {
                         mirror_vertex(args...) = -0.018750000000;
                     } else {
                         mirror_vertex(args...) = 0.0;
@@ -1651,14 +1704,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
                 // EdgeX DOFs (extends in x, check y-boundaries)
                 nestedViewLoop(mirror_edge_x, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_edge_x[d].first();
                     }
 
-                    if (((coords[0] >= 0) && (coords[0] < 4)) &&
-                        ((coords[1] > 1) && (coords[1] < 5))) {
+                    if (((coords[0] >= 0) && (coords[0] < 4))
+                        && ((coords[1] > 1) && (coords[1] < 5))) {
                         mirror_edge_x(args...) = -0.019921875000;
                     } else {
                         mirror_edge_x(args...) = 0.0;
@@ -1667,14 +1720,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
                 // EdgeY DOFs (extends in y, check x-boundaries)
                 nestedViewLoop(mirror_edge_y, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_edge_y[d].first();
                     }
 
-                    if (((coords[0] > 1) && (coords[0] < 5)) &&
-                        ((coords[1] >= 0) && (coords[1] < 4))) {
+                    if (((coords[0] > 1) && (coords[0] < 5))
+                        && ((coords[1] >= 0) && (coords[1] < 4))) {
                         mirror_edge_y(args...) = -0.019921875000;
                     } else {
                         mirror_edge_y(args...) = 0.0;
@@ -1683,14 +1736,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
                 // FaceXY DOFs (interior faces)
                 nestedViewLoop(mirror_face_xy, 0, [&]<typename... Idx>(const Idx... args) {
-                    using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                    using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                     index_type coords[dim] = {args...};
                     for (unsigned int d = 0; d < dim; ++d) {
                         coords[d] += ldom_face_xy[d].first();
                     }
 
-                    if (((coords[0] >= 0) && (coords[0] < 4)) &&
-                        ((coords[1] >= 0) && (coords[1] < 4))) {
+                    if (((coords[0] >= 0) && (coords[0] < 4))
+                        && ((coords[1] >= 0) && (coords[1] < 4))) {
                         mirror_face_xy(args...) = 0.024609375000;
                     } else {
                         mirror_face_xy(args...) = 0.0;
@@ -1728,54 +1781,56 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             FieldType ref_field_face_yz(mesh, layout, 1);
             FieldType ref_field_volume(mesh, layout, 1);
 
-            using VertexType = ippl::Vertex<dim>;
-            using EdgeXType = ippl::EdgeX<dim>;
-            using EdgeYType = ippl::EdgeY<dim>;
-            using EdgeZType = ippl::EdgeZ<dim>;
-            using FaceXYType = ippl::FaceXY<dim>;
-            using FaceXZType = ippl::FaceXZ<dim>;
-            using FaceYZType = ippl::FaceYZ<dim>;
+            using VertexType     = ippl::Vertex<dim>;
+            using EdgeXType      = ippl::EdgeX<dim>;
+            using EdgeYType      = ippl::EdgeY<dim>;
+            using EdgeZType      = ippl::EdgeZ<dim>;
+            using FaceXYType     = ippl::FaceXY<dim>;
+            using FaceXZType     = ippl::FaceXZ<dim>;
+            using FaceYZType     = ippl::FaceYZ<dim>;
             using HexahedronType = ippl::Hexahedron<dim>;
 
-            auto view_ref_vertex = ref_field_vertex.template getView<VertexType>();
-            auto view_ref_edge_x = ref_field_edge_x.template getView<EdgeXType>();
-            auto view_ref_edge_y = ref_field_edge_y.template getView<EdgeYType>();
-            auto view_ref_edge_z = ref_field_edge_z.template getView<EdgeZType>();
+            auto view_ref_vertex  = ref_field_vertex.template getView<VertexType>();
+            auto view_ref_edge_x  = ref_field_edge_x.template getView<EdgeXType>();
+            auto view_ref_edge_y  = ref_field_edge_y.template getView<EdgeYType>();
+            auto view_ref_edge_z  = ref_field_edge_z.template getView<EdgeZType>();
             auto view_ref_face_xy = ref_field_face_xy.template getView<FaceXYType>();
             auto view_ref_face_xz = ref_field_face_xz.template getView<FaceXZType>();
             auto view_ref_face_yz = ref_field_face_yz.template getView<FaceYZType>();
-            auto view_ref_volume = ref_field_volume.template getView<HexahedronType>();
+            auto view_ref_volume  = ref_field_volume.template getView<HexahedronType>();
 
-            auto mirror_vertex = Kokkos::create_mirror_view(view_ref_vertex);
-            auto mirror_edge_x = Kokkos::create_mirror_view(view_ref_edge_x);
-            auto mirror_edge_y = Kokkos::create_mirror_view(view_ref_edge_y);
-            auto mirror_edge_z = Kokkos::create_mirror_view(view_ref_edge_z);
+            auto mirror_vertex  = Kokkos::create_mirror_view(view_ref_vertex);
+            auto mirror_edge_x  = Kokkos::create_mirror_view(view_ref_edge_x);
+            auto mirror_edge_y  = Kokkos::create_mirror_view(view_ref_edge_y);
+            auto mirror_edge_z  = Kokkos::create_mirror_view(view_ref_edge_z);
             auto mirror_face_xy = Kokkos::create_mirror_view(view_ref_face_xy);
             auto mirror_face_xz = Kokkos::create_mirror_view(view_ref_face_xz);
             auto mirror_face_yz = Kokkos::create_mirror_view(view_ref_face_yz);
-            auto mirror_volume = Kokkos::create_mirror_view(view_ref_volume);
+            auto mirror_volume  = Kokkos::create_mirror_view(view_ref_volume);
 
             auto ldom_vertex = ref_field_vertex.template getLayout<VertexType>().getLocalNDIndex();
             auto ldom_edge_x = ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
             auto ldom_edge_y = ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
             auto ldom_edge_z = ref_field_edge_z.template getLayout<EdgeZType>().getLocalNDIndex();
-            auto ldom_face_xy = ref_field_face_xy.template
-    getLayout<FaceXYType>().getLocalNDIndex(); auto ldom_face_xz = ref_field_face_xz.template
-    getLayout<FaceXZType>().getLocalNDIndex(); auto ldom_face_yz = ref_field_face_yz.template
-    getLayout<FaceYZType>().getLocalNDIndex(); auto ldom_volume = ref_field_volume.template
-    getLayout<HexahedronType>().getLocalNDIndex();
+            auto ldom_face_xy =
+                ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
+            auto ldom_face_xz =
+                ref_field_face_xz.template getLayout<FaceXZType>().getLocalNDIndex();
+            auto ldom_face_yz =
+                ref_field_face_yz.template getLayout<FaceYZType>().getLocalNDIndex();
+            auto ldom_volume =
+                ref_field_volume.template getLayout<HexahedronType>().getLocalNDIndex();
 
             // Vertex DOFs
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_vertex[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_vertex(args...) = -0.000234375000;
                 } else {
                     mirror_vertex(args...) = 0.0;
@@ -1784,15 +1839,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // EdgeX DOFs (extends in x, check y,z-boundaries)
             nestedViewLoop(mirror_edge_x, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_x[d].first();
                 }
 
-                if (((coords[0] >= 0) && (coords[0] < 4)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] >= 0) && (coords[0] < 4)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_edge_x(args...) = -0.000371093750;
                 } else {
                     mirror_edge_x(args...) = 0.0;
@@ -1801,15 +1855,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // EdgeY DOFs (extends in y, check x,z-boundaries)
             nestedViewLoop(mirror_edge_y, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_y[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] >= 0) && (coords[1] < 4)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] >= 0) && (coords[1] < 4))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_edge_y(args...) = -0.000371093750;
                 } else {
                     mirror_edge_y(args...) = 0.0;
@@ -1818,15 +1871,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // EdgeZ DOFs (extends in z, check x,y-boundaries)
             nestedViewLoop(mirror_edge_z, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_edge_z[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] >= 0) && (coords[2] < 4))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] >= 0) && (coords[2] < 4))) {
                     mirror_edge_z(args...) = -0.000371093750;
                 } else {
                     mirror_edge_z(args...) = 0.0;
@@ -1835,15 +1887,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // FaceXY DOFs (extends in x,y, check z-boundaries)
             nestedViewLoop(mirror_face_xy, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_face_xy[d].first();
                 }
 
-                if (((coords[0] >= 0) && (coords[0] < 4)) &&
-                    ((coords[1] >= 0) && (coords[1] < 4)) &&
-                    ((coords[2] > 1) && (coords[2] < 5))) {
+                if (((coords[0] >= 0) && (coords[0] < 4)) && ((coords[1] >= 0) && (coords[1] < 4))
+                    && ((coords[2] > 1) && (coords[2] < 5))) {
                     mirror_face_xy(args...) = -0.000333251953;
                 } else {
                     mirror_face_xy(args...) = 0.0;
@@ -1852,15 +1903,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // FaceXZ DOFs (extends in x,z, check y-boundaries)
             nestedViewLoop(mirror_face_xz, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_face_xz[d].first();
                 }
 
-                if (((coords[0] >= 0) && (coords[0] < 4)) &&
-                    ((coords[1] > 1) && (coords[1] < 5)) &&
-                    ((coords[2] >= 0) && (coords[2] < 4))) {
+                if (((coords[0] >= 0) && (coords[0] < 4)) && ((coords[1] > 1) && (coords[1] < 5))
+                    && ((coords[2] >= 0) && (coords[2] < 4))) {
                     mirror_face_xz(args...) = -0.000333251953;
                 } else {
                     mirror_face_xz(args...) = 0.0;
@@ -1869,15 +1919,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // FaceYZ DOFs (extends in y,z, check x-boundaries)
             nestedViewLoop(mirror_face_yz, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_face_yz[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) &&
-                    ((coords[1] >= 0) && (coords[1] < 4)) &&
-                    ((coords[2] >= 0) && (coords[2] < 4))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] >= 0) && (coords[1] < 4))
+                    && ((coords[2] >= 0) && (coords[2] < 4))) {
                     mirror_face_yz(args...) = -0.000333251953;
                 } else {
                     mirror_face_yz(args...) = 0.0;
@@ -1886,15 +1935,14 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             // Volume DOFs (interior to elements)
             nestedViewLoop(mirror_volume, 0, [&]<typename... Idx>(const Idx... args) {
-                using index_type = std::tuple_element_t<0, std::tuple<Idx...>>;
+                using index_type       = std::tuple_element_t<0, std::tuple<Idx...>>;
                 index_type coords[dim] = {args...};
                 for (unsigned int d = 0; d < dim; ++d) {
                     coords[d] += ldom_volume[d].first();
                 }
 
-                if (((coords[0] >= 0) && (coords[0] < 4)) &&
-                    ((coords[1] >= 0) && (coords[1] < 4)) &&
-                    ((coords[2] >= 0) && (coords[2] < 4))) {
+                if (((coords[0] >= 0) && (coords[0] < 4)) && ((coords[1] >= 0) && (coords[1] < 4))
+                    && ((coords[2] >= 0) && (coords[2] < 4))) {
                     mirror_volume(args...) = 0.000807495117;
                 } else {
                     mirror_volume(args...) = 0.0;
@@ -1917,7 +1965,6 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             double err = z.norm();
             ASSERT_NEAR(err, 0.0, 1e-6);
         }
-        */
     } else {
         GTEST_SKIP() << "Tests only implemented for order 1, 2, 3";
     }
