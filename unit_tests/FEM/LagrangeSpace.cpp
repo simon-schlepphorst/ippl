@@ -1326,7 +1326,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                     coords[d] += ldom_edge_x[d].first();
                 }
 
-                if (((coords[0] >= 1) && (coords[0] < 4)) && ((coords[1] > 1) && (coords[1] < 5))) {
+                if (((coords[0] >= 1) && (coords[0] < 5)) && ((coords[1] > 1) && (coords[1] < 5))) {
                     mirror_edge_x(args...) = -0.075720164609;
                 } else {
                     mirror_edge_x(args...) = 0.0;
@@ -1341,7 +1341,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                     coords[d] += ldom_edge_y[d].first();
                 }
 
-                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] >= 1) && (coords[1] < 4))) {
+                if (((coords[0] > 1) && (coords[0] < 5)) && ((coords[1] >= 1) && (coords[1] < 5))) {
                     mirror_edge_y(args...) = -0.075720164609;
                 } else {
                     mirror_edge_y(args...) = 0.0;
@@ -1356,8 +1356,8 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                     coords[d] += ldom_face_xy[d].first();
                 }
 
-                if (((coords[0] >= 1) && (coords[0] < 4))
-                    && ((coords[1] >= 1) && (coords[1] < 4))) {
+                if (((coords[0] >= 1) && (coords[0] < 5))
+                    && ((coords[1] >= 1) && (coords[1] < 5))) {
                     mirror_face_xy(args...) = 0.223868312757;
                 } else {
                     mirror_face_xy(args...) = 0.0;
