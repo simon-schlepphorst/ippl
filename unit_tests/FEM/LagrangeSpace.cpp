@@ -1158,7 +1158,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
         // FIXME: Remove later
         auto debug_print_view = [&](auto v, std::string s = "unknown", std::string k = "unknown") {
-            std::cout << s << " : " << k << " : [\t";
+            std::cout << s << " : " << k << " : [\t\t";
             if constexpr (dim == 1) {
                 for (int i = 0; i < v.extent(0); i++) {
                     std::cout << v(i) << ", ";
@@ -1169,7 +1169,7 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
                     for (int j = 0; j < v.extent(1); j++) {
                         std::cout << v(i, j) << ", ";
                     }
-                    std::cout << " ),\n\t\t";
+                    std::cout << " ),\n\t\t\t";
                 }
             } else {
                 std::cout << "print not implemented for dim=" << dim;
@@ -1285,31 +1285,27 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
             z.fillHalo();
 
             // Set up for comparison
-            FieldType ref_field_vertex(mesh, layout, 1);
-            FieldType ref_field_edge_x(mesh, layout, 1);
-            FieldType ref_field_edge_y(mesh, layout, 1);
-            FieldType ref_field_face_xy(mesh, layout, 1);
+            FieldType ref_field(mesh, layout, 1);
 
             using VertexType = ippl::Vertex<dim>;
             using EdgeXType  = ippl::EdgeX<dim>;
             using EdgeYType  = ippl::EdgeY<dim>;
             using FaceXYType = ippl::FaceXY<dim>;
 
-            auto view_ref_vertex  = ref_field_vertex.template getView<VertexType>();
-            auto view_ref_edge_x  = ref_field_edge_x.template getView<EdgeXType>();
-            auto view_ref_edge_y  = ref_field_edge_y.template getView<EdgeYType>();
-            auto view_ref_face_xy = ref_field_face_xy.template getView<FaceXYType>();
+            auto view_ref_vertex  = ref_field.template getView<VertexType>();
+            auto view_ref_edge_x  = ref_field.template getView<EdgeXType>();
+            auto view_ref_edge_y  = ref_field.template getView<EdgeYType>();
+            auto view_ref_face_xy = ref_field.template getView<FaceXYType>();
 
             auto mirror_vertex  = Kokkos::create_mirror_view(view_ref_vertex);
             auto mirror_edge_x  = Kokkos::create_mirror_view(view_ref_edge_x);
             auto mirror_edge_y  = Kokkos::create_mirror_view(view_ref_edge_y);
             auto mirror_face_xy = Kokkos::create_mirror_view(view_ref_face_xy);
 
-            auto ldom_vertex = ref_field_vertex.template getLayout<VertexType>().getLocalNDIndex();
-            auto ldom_edge_x = ref_field_edge_x.template getLayout<EdgeXType>().getLocalNDIndex();
-            auto ldom_edge_y = ref_field_edge_y.template getLayout<EdgeYType>().getLocalNDIndex();
-            auto ldom_face_xy =
-                ref_field_face_xy.template getLayout<FaceXYType>().getLocalNDIndex();
+            auto ldom_vertex  = ref_field.template getLayout<VertexType>().getLocalNDIndex();
+            auto ldom_edge_x  = ref_field.template getLayout<EdgeXType>().getLocalNDIndex();
+            auto ldom_edge_y  = ref_field.template getLayout<EdgeYType>().getLocalNDIndex();
+            auto ldom_face_xy = ref_field.template getLayout<FaceXYType>().getLocalNDIndex();
 
             // Vertex DOFs
             nestedViewLoop(mirror_vertex, 0, [&]<typename... Idx>(const Idx... args) {
@@ -1380,15 +1376,12 @@ TYPED_TEST(LagrangeSpaceTest, evaluateAx) {
 
             debug_print(x, "x");
             debug_print(z, "z");
-            debug_print(ref_field_vertex, "ref_field_vertex");
-            debug_print(ref_field_edge_x, "ref_field_edge_x");
-            debug_print(ref_field_edge_y, "ref_field_edge_y");
-            debug_print(ref_field_face_xy, "ref_field_face_xy");
+            debug_print(ref_field, "ref_field");
 
             // Compare
-            z = z - ref_field_vertex - ref_field_edge_x - ref_field_edge_y - ref_field_face_xy;
+            z          = z - ref_field;
             double err = z.norm();
-            // debug_print(z, "z");
+            debug_print(z, "z");
             ASSERT_NEAR(err, 0.0, 1e-6);
         } else if constexpr (dim == 3) {
             x = 1.5;
