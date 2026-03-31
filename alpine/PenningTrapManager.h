@@ -1,6 +1,7 @@
 #ifndef IPPL_PENNING_TRAP_MANAGER_H
 #define IPPL_PENNING_TRAP_MANAGER_H
 
+#include <filesystem>
 #include <memory>
 
 #include "AlpineManager.h"
@@ -388,6 +389,7 @@ public:
         }
 
         if (ippl::Comm->rank() == 0) {
+            std::filesystem::create_directory("data");
             std::stringstream fname;
             fname << "data/ParticleField_";
             fname << ippl::Comm->size();

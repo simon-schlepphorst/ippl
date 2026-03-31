@@ -655,13 +655,13 @@ public:
         ippl::Comm->barrier();
     }
 
-    typename VField_t<T, Dim>::HostMirror getEMirror() const {
+    typename VField_t<T, Dim>::host_mirror_type getEMirror() const {
         auto Eview = E_m.getHostMirror();
         updateEMirror(Eview);
         return Eview;
     }
 
-    void updateEMirror(typename VField_t<T, Dim>::HostMirror& mirror) const {
+    void updateEMirror(typename VField_t<T, Dim>::host_mirror_type& mirror) const {
         Kokkos::deep_copy(mirror, E_m.getView());
     }
 
@@ -773,8 +773,10 @@ public:
     }
 
     void dumpParticleData() {
-        typename ParticleAttrib<Vector_t<T, Dim>>::HostMirror R_host = this->R.getHostMirror();
-        typename ParticleAttrib<Vector_t<T, Dim>>::HostMirror P_host = this->P.getHostMirror();
+        typename ParticleAttrib<Vector_t<T, Dim>>::host_mirror_type R_host =
+            this->R.getHostMirror();
+        typename ParticleAttrib<Vector_t<T, Dim>>::host_mirror_type P_host =
+            this->P.getHostMirror();
         Kokkos::deep_copy(R_host, this->R.getView());
         Kokkos::deep_copy(P_host, P.getView());
         std::stringstream pname;

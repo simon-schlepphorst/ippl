@@ -84,7 +84,7 @@ public:
      * @param nghost number of ghost cells
      * @param mirror the field view's host mirror
      */
-    void randomizeRealField(int nghost, typename field_type_real::HostMirror& mirror) {
+    void randomizeRealField(int nghost, typename field_type_real::host_mirror_type& mirror) {
         std::mt19937_64 eng(42 + ippl::Comm->rank());
         std::uniform_real_distribution<T> unif(0, 1);
 
@@ -99,7 +99,7 @@ public:
      * @param mirror the field view's host mirror
      */
 
-    void zeroRealField(int nghost, typename field_type_real::HostMirror& mirror) {
+    void zeroRealField(int nghost, typename field_type_real::host_mirror_type& mirror) {
         nestedViewLoop(mirror, nghost, [&]<typename... Idx>(const Idx... args) {
             mirror(args...) = 0.0;
             ;
@@ -111,7 +111,7 @@ public:
      * @param nghost number of ghost cells
      * @param mirror the field view's host mirror
      */
-    void randomizeComplexField(int nghost, typename field_type_complex::HostMirror& mirror) {
+    void randomizeComplexField(int nghost, typename field_type_complex::host_mirror_type& mirror) {
         std::mt19937_64 engReal(42 + ippl::Comm->rank());
         std::uniform_real_distribution<T> unifReal(0, 1);
 
@@ -129,7 +129,7 @@ public:
      * @param nghost number of ghost cells
      * @param mirror the field view's host mirror
      */
-    void zeroComplexField(int nghost, typename field_type_complex::HostMirror& mirror) {
+    void zeroComplexField(int nghost, typename field_type_complex::host_mirror_type& mirror) {
         nestedViewLoop(mirror, nghost, [&]<typename... Idx>(const Idx... args) {
             mirror(args...).real() = 0.0;
             mirror(args...).imag() = 0.0;

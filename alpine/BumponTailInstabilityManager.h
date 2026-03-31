@@ -1,6 +1,7 @@
 #ifndef IPPL_BUMPON_TAIL_INSTABILITY_MANAGER_H
 #define IPPL_BUMPON_TAIL_INSTABILITY_MANAGER_H
 
+#include <filesystem>
 #include <memory>
 
 #include "AlpineManager.h"
@@ -489,6 +490,7 @@ public:
         ippl::Comm->reduce(tempMax, EzAmp, 1, std::greater<double>());
 
         if (ippl::Comm->rank() == 0) {
+            std::filesystem::create_directory("data");
             std::stringstream fname;
             fname << "data/FieldBumponTail_";
             fname << ippl::Comm->size();
